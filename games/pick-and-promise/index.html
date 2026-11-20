@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pick & Promise</title>
+<meta name="description" content="A retro arcade demo of the NeurIPS 2026 paper “Post-Selection Distributional Model Evaluation” by Amirmohammad Farzaneh and Osvaldo Simeone: pick the best couriers from tryouts, then certify their delivery times without fooling yourself.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: page header, a CRT in a circuit-board bezel, a control strip with the reliability dial, then a plain-language explainer. */
+:root {
+  --page: #e6e9ee; --ink: #16202a; --quiet: #51606b; --line: #c2cbd3;
+  --accent: #0e8f8a; --accent2: #e07b00; --bezel: #22303a; --pin: #c9a646;
+  --btn: #f7f9fa; --btn-ink: #16202a;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #141c23; --ink: #e3e9ee; --quiet: #9aa9b4; --line: #34434d;
+    --accent: #45c2bd; --accent2: #ffa23a; --bezel: #0c1216; --pin: #b8963a;
+    --btn: #22303a; --btn-ink: #e3e9ee;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #141c23; --ink: #e3e9ee; --quiet: #9aa9b4; --line: #34434d;
+  --accent: #45c2bd; --accent2: #ffa23a; --bezel: #0c1216; --pin: #b8963a;
+  --btn: #22303a; --btn-ink: #e3e9ee;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.5 "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1000px; margin: 0 auto; padding-block: 20px 36px; padding-inline: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; margin-bottom: 14px; }
+h1 { margin: 0; font: 600 clamp(30px, 6vw, 46px)/1 "Pixelify Sans", ui-monospace, monospace; letter-spacing: 0.02em; color: var(--ink); text-shadow: 3px 3px 0 var(--accent); }
+header p { margin: 0; color: var(--quiet); max-width: 62ch; }
+header p em { font-style: normal; color: var(--ink); }
+header p .back { color: var(--accent); white-space: nowrap; }
+
+.bezel { background: var(--bezel); border-radius: 14px 14px 6px 6px; padding: 10px 10px 22px; position: relative;
+  box-shadow: 0 0 0 1px rgba(69, 194, 189, 0.35), 0 0 28px rgba(69, 194, 189, 0.18), 0 0 60px rgba(255, 162, 58, 0.1); }
+.bezel::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: 7px; height: 8px; background: repeating-linear-gradient(90deg, var(--pin) 0 6px, transparent 6px 11px); opacity: 0.9; }
+.stage { position: relative; aspect-ratio: 16 / 10; width: 100%; max-width: 100%; overflow: hidden; border-radius: 4px; background: #000; container-type: inline-size; }
+#screen { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+#scan { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; opacity: 0.45; background: linear-gradient(to bottom, transparent 50%, rgba(20, 0, 40, 0.35) 50%); background-size: 100% calc(100% / 200); }
+#layer { position: absolute; inset: 0; -webkit-user-select: none; user-select: none; cursor: default; }
+#layer.pick { cursor: pointer; }
+
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6, 10, 14, 0.55); padding: 3%; }
+.overlay.bar { align-items: flex-end; background: transparent; pointer-events: none; padding: 0 0 2%; }
+.overlay.top { align-items: flex-start; background: rgba(6, 10, 14, 0.35); }
+.overlay.bar > * { pointer-events: auto; }
+.overlay[hidden] { display: none; }
+.box { background: #f7f3e6; color: #1b1b1b; border: 3px solid #1b1b1b; box-shadow: 5px 5px 0 #1b1b1b; max-width: 86%; max-height: 94%; overflow: auto; padding: 2.6cqw 3.2cqw; text-align: left; font: 400 clamp(12px, 2.6cqw, 18px)/1.35 "Pixelify Sans", ui-monospace, monospace; }
+.box.wide { max-width: 94%; width: 94%; }
+.box.slim { padding: 1.2cqw 2cqw; display: flex; gap: 1.6cqw; align-items: center; flex-wrap: wrap; }
+.box p { margin: 0 0 0.8em; }
+.box h3 { margin: 0 0 0.5em; font: 600 clamp(15px, 3.6cqw, 26px)/1.1 "Pixelify Sans", ui-monospace, monospace; }
+.box h3 small { color: #6a5a30; font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }
+.box .hint { color: #5d5a4e; font-size: 0.9em; }
+.box button { font: 600 clamp(12px, 2.6cqw, 18px)/1 "Pixelify Sans", ui-monospace, monospace; background: #1b1b1b; color: #f7f3e6; border: 0; padding: 0.55em 1.1em; cursor: pointer; }
+.box button:disabled { opacity: 0.4; cursor: default; }
+.box button.ghost { background: transparent; color: #1b1b1b; border: 2px solid #1b1b1b; }
+.row { display: flex; flex-wrap: wrap; gap: 1.2cqw; align-items: center; margin-top: 1cqw; }
+.row.end { justify-content: flex-end; }
+.title { flex-direction: column; text-align: center; gap: 2cqw; background: rgba(6, 10, 14, 0.62); }
+.title h2 { margin: 0; color: #fff; font: 600 clamp(30px, 11cqw, 92px)/1 "Pixelify Sans", ui-monospace, monospace; text-shadow: 0.06em 0.06em 0 var(--accent); }
+.title p { margin: 0; color: #e8eef2; max-width: 36em; font-size: clamp(13px, 2.6cqw, 18px); }
+.title .row { gap: 2cqw; margin-top: 1cqw; justify-content: center; }
+.title button { font: 600 clamp(13px, 2.8cqw, 19px)/1 "Pixelify Sans", ui-monospace, monospace; background: #f7f3e6; color: #1b1b1b; border: 0; padding: 0.55em 1.1em; cursor: pointer; box-shadow: 4px 4px 0 var(--accent); }
+.title button:disabled { opacity: 0.5; }
+.title a { color: #9fe8e4; }
+button:focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
+
+.cabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4cqw; margin: 0.6em 0; }
+.cab { display: flex; flex-direction: column; gap: 0.5cqw; text-align: left; cursor: pointer; background: #fff; color: #1b1b1b; border: 3px solid #1b1b1b; padding: 1.2cqw 1.4cqw; box-shadow: 4px 4px 0 #1b1b1b; font: 400 clamp(11px, 2.2cqw, 15px)/1.3 "Pixelify Sans", ui-monospace, monospace; }
+.cab:hover, .cab:focus-visible { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #1b1b1b; }
+.cab b { font-size: 1.25em; display: block; border-bottom: 3px solid; padding-bottom: 0.2em; margin-bottom: 0.2em; }
+.cab.naive b { border-color: #d6403a; } .cab.split b { border-color: #8b5cf6; } .cab.ps b { border-color: #15a37f; }
+.cab .tag { font-size: 0.8em; color: #5d5a4e; }
+.cab .opts { display: flex; gap: 0.5cqw; margin-top: 0.3em; }
+.cab .opts span { border: 2px solid #1b1b1b; padding: 0.2em 0.5em; font-size: 0.85em; }
+.cab .opts span[aria-pressed="true"] { background: #1b1b1b; color: #fff; }
+@media (max-width: 560px) { .cabs { grid-template-columns: 1fr; } }
+
+.chip { font: 600 clamp(11px, 2.3cqw, 16px)/1 "Pixelify Sans", ui-monospace, monospace; background: #fff; color: #1b1b1b; border: 2px solid #1b1b1b; padding: 0.45em 0.8em; cursor: pointer; }
+.chip[aria-pressed="true"] { background: #1b1b1b; color: #f7f3e6; }
+
+.verdicts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.8cqw; margin: 0.4em 0 0.6em; }
+.vd { background: #fff; border: 2px solid #1b1b1b; padding: 0.4em 0.5em; font-size: 0.85em; text-align: center; }
+.vd b { display: block; font-size: 1.1em; }
+.vd.ok { background: #d9f5ea; } .vd.miss { background: #fde0de; }
+.score { font: 600 clamp(16px, 4cqw, 32px)/1 "Pixelify Sans", ui-monospace, monospace; color: #0b6e6a; }
+.score.bad { color: #b3261e; }
+@media (max-width: 560px) { .verdicts { grid-template-columns: repeat(3, 1fr); } }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; }
+.dial { display: flex; align-items: center; gap: 10px; color: var(--quiet); font-size: 15px; }
+.dial strong { color: var(--ink); min-width: 3ch; display: inline-block; font-variant-numeric: tabular-nums; }
+.dial input { width: 160px; accent-color: var(--accent); }
+.meta { margin-left: auto; display: flex; align-items: center; gap: 14px; color: var(--quiet); font-size: 15px; flex-wrap: wrap; }
+.meta strong { color: var(--ink); }
+.plain { font: 700 15px/1 "Atkinson Hyperlegible", system-ui, sans-serif; background: var(--btn); color: var(--btn-ink); border: 2px solid var(--line); border-radius: 6px; padding: 10px 14px; cursor: pointer; text-decoration: none; display: inline-block; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; color: var(--quiet); }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--line); }
+.legend .t::before { background: #fff; } .legend .n::before { background: #ff6a5e; } .legend .s::before { background: #b394ff; } .legend .p::before { background: #3ddc97; }
+
+.explain { margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 28px; }
+.explain h2 { grid-column: 1 / -1; margin: 0; font: 600 clamp(22px, 4vw, 30px)/1.1 "Pixelify Sans", ui-monospace, monospace; }
+.explain h3 { margin: 0 0 6px; font-size: 17px; }
+.explain p { margin: 0; color: var(--quiet); }
+.explain p b { color: var(--ink); }
+.cite { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--quiet); font-size: 14px; max-width: 76ch; }
+.cite a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .cab:hover { transform: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Pick &amp; Promise</h1>
+    <p>An arcade demo of the paper <em>Post-Selection Distributional Model Evaluation</em>. Pick the fastest couriers from tryouts, then certify how fast they really are, using the same data, without fooling yourself. <a class="back" href="../../games.html">All games →</a></p>
+  </header>
+
+  <div class="bezel">
+    <div class="stage">
+      <canvas id="screen" width="640" height="400" aria-label="Game picture"></canvas>
+      <div id="scan" aria-hidden="true"></div>
+      <div id="layer">
+
+        <div id="dlg" class="overlay" hidden>
+          <div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgText">
+            <p id="dlgText"></p>
+            <div class="row end"><button id="dlgOk">OK</button></div>
+          </div>
+        </div>
+
+        <div id="protoPanel" class="overlay" hidden>
+          <div class="box wide" role="dialog" aria-modal="true" aria-labelledby="protoTitle">
+            <h3 id="protoTitle">Choose your protocol</h3>
+            <p class="hint">Every courier runs 30 test deliveries. You will pick 5 couriers, then issue each a certificate: a band that their whole delivery-time distribution must stay inside. One broken certificate in ten is the most you are allowed, on average.</p>
+            <div class="cabs">
+              <button class="cab naive" data-p="naive"><b>REUSE</b><span>Pick on all 30 runs, certify on the same 30 runs, standard band.</span><span class="tag">The naive approach. No post-selection correction.</span></button>
+              <button class="cab split" data-p="split"><b>SPLIT</b><span>Pick on a share of the runs, seal the rest, certify on the sealed runs only.</span><span class="tag">Valid, but wasteful. Share used for picking:</span><span class="opts" id="splitOpts"><span data-s="0.5" aria-pressed="false">50%</span><span data-s="0.6" aria-pressed="false">60%</span><span data-s="0.7" aria-pressed="true">70%</span></span></button>
+              <button class="cab ps" data-p="ps"><b>PS-DME</b><span>Pick on all 30 runs, certify on all 30 runs, band widened by an e-value correction for having looked.</span><span class="tag">The paper's method. Valid for any way of picking.</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div id="pickBar" class="overlay bar" hidden>
+          <div class="box slim">
+            <span id="pickText">Pick 5 couriers</span>
+            <button class="ghost" id="autoPick">Pick the 5 fastest-looking</button>
+            <button id="pickDone" disabled>Certify these 5</button>
+          </div>
+        </div>
+
+        <div id="certBar" class="overlay bar" hidden>
+          <div class="box slim">
+            <span id="certText"></span>
+            <button id="revealBtn">Reveal the truth</button>
+          </div>
+        </div>
+
+        <div id="resultPanel" class="overlay bar" hidden>
+          <div class="box wide" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+            <h3 id="resultTitle">Result</h3>
+            <div class="verdicts" id="verdicts"></div>
+            <div id="resultScore"></div>
+            <p id="resultNote" class="hint"></p>
+            <div class="row end"><button class="ghost" id="seasonsBtn">Run 500 seasons</button><button id="againBtn">New tryouts</button></div>
+          </div>
+        </div>
+
+        <div id="seasonsBar" class="overlay bar" hidden>
+          <div class="box slim">
+            <span id="seasonsText"></span>
+            <button class="ghost" id="seasonsBack">Back</button>
+            <button id="seasonsAgain">New tryouts</button>
+          </div>
+        </div>
+
+        <div id="titleScreen" class="overlay title">
+          <h2>Pick &amp; Promise</h2>
+          <p>Thirty couriers, thirty test runs each. Pick your five fastest, then put your name on a certificate of how fast they really are. The catch: the ones that looked best were partly lucky.</p>
+          <div class="row"><button id="newGame" disabled>Insert coin</button><button id="howBtn">How it works</button></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="dial"><label for="relDial">Reliability</label><input id="relDial" type="range" min="50" max="95" step="5" value="60"><strong id="relOut">60%</strong><span class="legend" aria-label="Trace colours" style="margin-left:6px"><span class="t">truth</span><span class="n">Reuse</span><span class="s">Split</span><span class="p">PS-DME</span></span></div>
+    <div class="meta">
+      <span>Score <strong id="scoreOut">0</strong></span>
+      <button class="plain" id="soundBtn" aria-pressed="true">Sound: on</button>
+      <button class="plain" id="restartBtn">Restart</button>
+      <a class="plain" href="https://arxiv.org/abs/2603.23055" target="_blank" rel="noopener">Read the paper</a>
+    </div>
+  </div>
+
+  <section class="explain">
+    <h2>What the game shows</h2>
+    <div>
+      <h3>The winner's curse</h3>
+      <p>You compare many candidates on limited data and keep the ones that look best. Part of what made them look best was luck, so the same data now <b>overstates</b> how good they are. In the game the five picked couriers are always a little slower than their tryouts suggested.</p>
+    </div>
+    <div>
+      <h3>Certificates for whole distributions</h3>
+      <p>A single target (“under 15 minutes”) is often not known in advance. The paper certifies the <b>entire distribution</b> of a KPI with a confidence band around its cumulative distribution function. From one band you can read off the guaranteed time at any reliability level, which is what the dial under the screen does.</p>
+    </div>
+    <div>
+      <h3>Reuse, split, or correct</h3>
+      <p>Reusing the data naively breaks more than the allowed one certificate in ten. Splitting the data is valid but throws away samples, so bands get wider and picks get worse. <b>PS-DME</b> reuses everything and pays a correction, computed with e-values, that depends only on how many candidates you looked at and how many you kept.</p>
+    </div>
+    <div>
+      <h3>When is the correction worth it?</h3>
+      <p>The paper gives the exact condition (Lemma 2): PS-DME's band is narrower than splitting whenever the split would reserve less than a threshold share of the data for certification. Picking 5 of 30 is a harsh selection, so the correction is large and the threshold here is about 39%: PS-DME beats a 70/30 split, ties 60/40, and a 50/50 split is a little sharper but has to pick on half the data. Keep more candidates and the correction shrinks.</p>
+    </div>
+  </section>
+
+  <p class="cite">A. Farzaneh, O. Simeone, “Post-Selection Distributional Model Evaluation,” <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, 2026. <a href="https://arxiv.org/abs/2603.23055" target="_blank" rel="noopener">arXiv:2603.23055</a>. The couriers are a toy; the bands, the error criterion (false coverage rate) and the three protocols are the paper's. Game by <a href="https://afarzaneh.com">Amirmohammad Farzaneh</a>.</p>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const cv = $("screen"), ctx = cv.getContext("2d");
+const W = 640, H = 400;
+
+/* ===================== Random numbers and maths ===================== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let seedCounter = (Date.now() % 1000003) | 0;
+const newRng = () => mulberry32(seedCounter = (seedCounter * 1103515245 + 12345) & 0x7fffffff);
+const randn = (r) => { const u = Math.max(1e-12, r()), v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+function erf(x) { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return s * y; }
+const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
+function erfinv(x) { const a = 0.147, ln = Math.log(1 - x * x), t = 2 / (Math.PI * a) + ln / 2; return Math.sign(x) * Math.sqrt(Math.sqrt(t * t - ln / a) - t); }
+// Lower real branch of the Lambert W function on [-1/e, 0), used for the optimal e-calibrator (Corollary 2).
+function lambertWm1(x) { let w = Math.log(-x) - Math.log(-Math.log(-x)); for (let i = 0; i < 80; i++) { const ew = Math.exp(w), f = w * ew - x; w -= f / (ew * (w + 1) - (w + 2) * f / (2 * w + 2)); } return w; }
+
+/* ===================== The toy world ===================== */
+const K = 30, N = 30, M = 5, DELTA = 0.1, SIG = 0.4;
+const XMIN = 2, XMAX = 40; const XGRID = []; for (let x = XMIN; x <= XMAX + 1e-9; x += 0.1) XGRID.push(Math.round(x * 10) / 10);
+const dkwEps = (n, d) => Math.sqrt(Math.log(2 / d) / (2 * n));
+// PS-DME band width (14) with the power e-calibrator and the optimal tau of Corollary 2.
+function psBand(n, k, m, d) { const tau = 1 + 1 / lambertWm1(-d * m / (Math.E * k)); const t = k / (d * m); const finv = Math.min(1, Math.pow((1 - tau) / t, 1 / tau)); return { eps: Math.sqrt(Math.log(2 / finv) / (2 * n)), tau, factor: Math.log(2 / finv) / Math.log(2 / d) }; }
+const PS = psBand(N, K, M, DELTA);
+const SPLIT_THRESHOLD = Math.log(2 / DELTA) / (Math.log(2 / DELTA) * PS.factor); // Lemma 2: n_eval/n must be below this
+function makeCouriers(r) { const out = []; for (let k = 0; k < K; k++) out.push({ id: k + 1, med: 10 + 1.5 * Math.pow(r(), 0.6), sig: SIG, runs: [] }); return out; }
+const sampleRun = (c, r) => c.med * Math.exp(c.sig * randn(r));
+const trueCDF = (c, x) => x <= 0 ? 0 : Phi(Math.log(x / c.med) / c.sig);
+const trueQ = (c, p) => c.med * Math.exp(c.sig * Math.SQRT2 * erfinv(2 * p - 1));
+function ecdfFn(arr) { const s = [...arr].sort((a, b) => a - b); return (x) => { let lo = 0, hi = s.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (s[mid] <= x) lo = mid + 1; else hi = mid; } return lo / s.length; }; }
+// Certificate: band [F̂ - eps, F̂ + eps] from the given runs. Guaranteed time at reliability p = inf{x : F̂(x) - eps >= p}.
+function certificate(runs, eps) { const F = ecdfFn(runs); const sorted = [...runs].sort((a, b) => a - b); return { F, eps, n: runs.length, sorted, guaranteed: (p) => { const need = p + eps; if (need > 1 + 1e-9) return Infinity; const idx = Math.ceil(need * runs.length - 1e-9) - 1; return sorted[clamp(idx, 0, sorted.length - 1)]; } }; }
+function checkCoverage(cert, c) { for (const x of XGRID) { const t = trueCDF(c, x), e = cert.F(x); if (t < e - cert.eps - 1e-12 || t > e + cert.eps + 1e-12) return x; } return null; }
+function topM(scores, m) { return scores.map((s, i) => [s, i]).sort((a, b) => a[0] - b[0]).slice(0, m).map(p => p[1]); }
+
+const PROTO = {
+  naive: { name: "REUSE", color: "#ff6a5e", long: "naive reuse" },
+  split: { name: "SPLIT", color: "#b394ff", long: "sample splitting" },
+  ps: { name: "PS-DME", color: "#3ddc97", long: "post-selection distributional model evaluation" }
+};
+// Runs one full season for a protocol with the auto-pick rule. Used by the 500-seasons board.
+function season(proto, splitShare, r) {
+  const cs = makeCouriers(r); for (const c of cs) for (let i = 0; i < N; i++) c.runs.push(sampleRun(c, r));
+  let sel, certs;
+  if (proto === "split") { const nSel = Math.round(N * splitShare); sel = topM(cs.map(c => mean(c.runs.slice(0, nSel))), M); certs = sel.map(k => certificate(cs[k].runs.slice(nSel), dkwEps(N - nSel, DELTA))); }
+  else { sel = topM(cs.map(c => mean(c.runs)), M); const eps = proto === "ps" ? PS.eps : dkwEps(N, DELTA); certs = sel.map(k => certificate(cs[k].runs, eps)); }
+  let miss = 0; for (let i = 0; i < sel.length; i++) if (checkCoverage(certs[i], cs[sel[i]]) !== null) miss++;
+  return { fcp: miss / M, eps: certs[0].eps, guaranteed: (p) => Math.min(...certs.map(c => c.guaranteed(p))) };
+}
+
+/* ===================== Game state ===================== */
+const G = { score: 0, sound: true, proto: null, splitShare: 0.7, couriers: [], picked: [], certs: [], rel: 0.6, order: [], stage: "title", seasons: null };
+try { G.sound = localStorage.getItem("pap-sound") !== "off"; } catch (e) { }
+const S = { hud: "INSERT COIN", mode: "idle" };
+
+/* ===================== Sound ===================== */
+let ac = null;
+function beep(freq, dur, type, vol) { if (!G.sound) return; try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(), g = ac.createGain(); o.type = type || "square"; o.frequency.value = freq; g.gain.setValueAtTime(vol || 0.06, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.0005, ac.currentTime + dur); o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + dur); } catch (e) { } }
+const sfx = { click: () => beep(660, 0.06), tick: () => beep(900 + Math.random() * 300, 0.025, "square", 0.025), pick: () => { beep(520, 0.06); setTimeout(() => beep(780, 0.08), 70); }, good: () => { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.12), i * 90)); }, bad: () => { [400, 300, 220].forEach((f, i) => setTimeout(() => beep(f, 0.16, "sawtooth", 0.04), i * 120)); }, crack: () => beep(140, 0.3, "sawtooth", 0.05), stamp: () => beep(220, 0.1, "triangle", 0.08) };
+
+/* ===================== Pixel art ===================== */
+const PAL = { k: "#101418", w: "#f4f1e8", r: "#e5484d", o: "#ffa23a", y: "#ffd84a", g: "#3ddc97", b: "#4cc9f0", p: "#b394ff", s: "#8899a6", d: "#3b4a57", t: "#d8a070", m: "#1f6f8b", c: "#45c2bd" };
+const SPR = {
+  courier: [".....kkk....", "....kyyyk...", "....kttk....", "...kccck....", "..kccccck.k.", ".k.kccck.kk.", "....kkk..k..", "..kkkkkkkk..", ".kskkkkkksk.", "kssk....kssk", "kssk....kssk", ".kk......kk."],
+  parcel: ["kkkkkk", "ktotok", "kttttk", "kotook", "kttttk", "kkkkkk"],
+  seal: ["..kkkk..", ".kyyyyk.", "kyykkyyk", "kykyykyk", "kykyykyk", "kyykkyyk", ".kyyyyk.", "..kkkk.."],
+  clock: [".kkkk.", "kwwwwk", "kwkwwk", "kwkkwk", "kwwwwk", ".kkkk."]
+};
+function sprite(name, x, y, sc, tint) { const rows = SPR[name]; sc = sc || 3; for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) { const ch = rows[j][i]; if (ch === ".") continue; ctx.fillStyle = tint && ch !== "k" ? tint : PAL[ch]; ctx.fillRect(x + i * sc, y + j * sc, sc, sc); } }
+function px(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function text(s, x, y, size, color, align, weight) { ctx.font = `${weight || 400} ${size}px "Pixelify Sans", ui-monospace, monospace`; ctx.fillStyle = color || PAL.w; ctx.textAlign = align || "left"; ctx.textBaseline = "top"; ctx.fillText(s, x, y); }
+const f1 = (x) => x.toFixed(1), pct = (x) => Math.round(x * 100) + "%";
+
+/* ===================== Scene: courier grid ===================== */
+const GRID = { x: 28, y: 52, cols: 10, rows: 3, cw: 58, ch: 62 };
+function cellOf(slot) { return { x: GRID.x + (slot % GRID.cols) * GRID.cw, y: GRID.y + Math.floor(slot / GRID.cols) * GRID.ch }; }
+function drawGridScene() {
+  const vis = G.proto === "split" ? Math.round(N * G.splitShare) : N;
+  for (let slot = 0; slot < K; slot++) {
+    const k = G.order[slot], c = G.couriers[k]; const { x, y } = cellOf(slot);
+    const picked = G.picked.includes(k), hover = S.hover === k;
+    if (picked) { px(x - 2, y - 2, GRID.cw - 2, GRID.ch - 2, "#1d4f49"); px(x - 2, y - 2, GRID.cw - 2, 2, PAL.g); px(x - 2, y + GRID.ch - 6, GRID.cw - 2, 2, PAL.g); }
+    else if (hover && S.mode === "pick") px(x - 2, y - 2, GRID.cw - 2, GRID.ch - 2, "#1a2a3a");
+    const shown = S.mode === "tryouts" ? Math.min(vis, Math.floor(S.prog * vis * 1.2)) : vis;
+    sprite("courier", x + 8, y + 2, 3, picked ? PAL.g : undefined);
+    text("#" + c.id, x + 2, y + 1, 9, PAL.s);
+    if (shown > 0) { const arr = c.runs.slice(0, shown); const m = mean(arr); text(f1(m), x + GRID.cw / 2 - 2, y + 40, 12, S.mode === "pick" || S.mode === "curse" ? PAL.y : PAL.w, "center", 600); }
+    if (S.mode === "tryouts") { px(x + 6, y + 54, 44, 3, "#223"); px(x + 6, y + 54, 44 * shown / vis, 3, PAL.c); }
+    else if (shown > 0) text(`${shown} runs`, x + GRID.cw / 2 - 2, y + 53, 8, PAL.s, "center");
+    if (G.proto === "split" && S.mode !== "tryouts") { px(x + 44, y + 2, 10, 8, PAL.o); text("S", x + 49, y + 1, 8, PAL.k, "center", 600); }
+  }
+  if (S.mode === "curse") drawCurse();
+}
+function drawCurse() {
+  // Observed average vs true average for the picked five, as paired bars under the grid.
+  const x0 = 60, y0 = 262, w = 520; px(x0 - 20, y0 - 20, w + 40, 150, "#06101a");
+  text("THE PICKED FIVE: tryout average vs true average (minutes)", x0, y0 - 16, 11, PAL.y, "left", 600);
+  const scale = 520 / 20;
+  const p = S.prog === undefined ? 1 : S.prog;
+  G.picked.forEach((k, i) => {
+    const c = G.couriers[k], obs = mean(G.proto === "split" ? c.runs.slice(0, Math.round(N * G.splitShare)) : c.runs), tru = Math.exp(Math.log(c.med) + c.sig * c.sig / 2);
+    const y = y0 + i * 26; text("#" + c.id, x0 - 18, y + 2, 10, PAL.s, "left");
+    px(x0 + 10, y, obs * scale, 8, PAL.y); text(f1(obs), x0 + 14 + obs * scale, y - 1, 10, PAL.y);
+    const tw = (obs + (tru - obs) * p) * scale; px(x0 + 10, y + 10, tw, 8, PAL.w); if (p >= 1) text(f1(tru) + (tru > obs ? "  slower" : ""), x0 + 14 + tw, y + 9, 10, PAL.w);
+  });
+}
+
+/* ===================== Scene: certificates ===================== */
+const BIG = { x: 36, y: 56, w: 360, h: 290 }, SMALL = { x: 420, y: 56, w: 196, h: 54, gap: 6 };
+function panelFor(i) { if (i === S.focus) return BIG; const j = G.picked.map((_, q) => q).filter(q => q !== S.focus).indexOf(i); return { x: SMALL.x, y: SMALL.y + j * (SMALL.h + SMALL.gap), w: SMALL.w, h: SMALL.h }; }
+function drawCertScene() {
+  text(`${PROTO[G.proto].name} certificates · band ±${PS && G.certs[0] ? G.certs[0].eps.toFixed(2) : ""} · reliability ${pct(G.rel)}`, 36, 42, 11, PAL.s);
+  G.picked.forEach((k, i) => drawCDFPanel(G.couriers[k], G.certs[i], panelFor(i), i === S.focus, i));
+  text("click a small panel to focus it", SMALL.x, SMALL.y + 5 * (SMALL.h + SMALL.gap) - 2, 9, PAL.s);
+}
+function drawCDFPanel(c, cert, P, big, i) {
+  px(P.x, P.y, P.w, P.h, "#06101a"); ctx.strokeStyle = "#163045"; ctx.lineWidth = 1; ctx.strokeRect(P.x + 0.5, P.y + 0.5, P.w - 1, P.h - 1);
+  const pad = big ? { l: 28, r: 8, t: 18, b: 22 } : { l: 4, r: 4, t: 4, b: 4 };
+  const ax = { x: P.x + pad.l, y: P.y + pad.t, w: P.w - pad.l - pad.r, h: P.h - pad.t - pad.b };
+  const X = (x) => ax.x + (x - XMIN) / (XMAX - XMIN) * ax.w, Y = (p) => ax.y + ax.h - p * ax.h;
+  const col = PROTO[G.proto].color;
+  // band
+  ctx.fillStyle = col; ctx.globalAlpha = 0.22; ctx.beginPath();
+  for (const x of XGRID) ctx.lineTo(X(x), Y(clamp(cert.F(x) + cert.eps, 0, 1)));
+  for (let q = XGRID.length - 1; q >= 0; q--) ctx.lineTo(X(XGRID[q]), Y(clamp(cert.F(XGRID[q]) - cert.eps, 0, 1)));
+  ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+  // empirical CDF
+  ctx.strokeStyle = col; ctx.lineWidth = big ? 2 : 1; ctx.beginPath(); for (const x of XGRID) ctx.lineTo(X(x), Y(cert.F(x))); ctx.stroke();
+  // reliability line and guaranteed time
+  const g = cert.guaranteed(G.rel);
+  ctx.setLineDash([3, 3]); ctx.strokeStyle = PAL.y; ctx.beginPath(); ctx.moveTo(ax.x, Y(G.rel)); ctx.lineTo(ax.x + ax.w, Y(G.rel)); ctx.stroke(); ctx.setLineDash([]);
+  if (g < Infinity) { px(X(g) - 1, Y(G.rel), 2, ax.y + ax.h - Y(G.rel), PAL.y); if (big) text(`guaranteed ≤ ${f1(g)} min at ${pct(G.rel)}`, clamp(X(g) + 4, ax.x, ax.x + ax.w - 150), Y(G.rel) + 4, 11, PAL.y, "left", 600); }
+  else if (big) text(`cannot certify ${pct(G.rel)} with ${cert.n} runs`, ax.x + 6, Y(G.rel) + 4, 11, PAL.y, "left", 600);
+  // truth
+  if (S.reveal !== undefined) {
+    const p = S.reveal, bad = S.badAt ? S.badAt[i] : null; let crossed = false;
+    ctx.lineWidth = big ? 2 : 1.5; ctx.beginPath(); ctx.strokeStyle = PAL.w; ctx.setLineDash([5, 3]);
+    const upto = XMIN + (XMAX - XMIN) * p;
+    for (const x of XGRID) { if (x > upto) break; ctx.lineTo(X(x), Y(trueCDF(c, x))); }
+    ctx.stroke(); ctx.setLineDash([]);
+    if (bad !== null && bad <= upto) { crossed = true; const bx = X(bad), by = Y(trueCDF(c, bad)); if (Math.floor(performance.now() / 150) % 2) { px(bx - 5, by - 5, 10, 10, PAL.r); } if (big) text("MISCOVERAGE", clamp(bx - 40, ax.x, ax.x + ax.w - 90), clamp(by - 16, ax.y, ax.y + ax.h - 12), 11, PAL.r, "left", 600); }
+    if (p >= 1) { const ok = bad === null; px(P.x + P.w - (big ? 70 : 44), P.y + 3, big ? 66 : 40, big ? 16 : 11, ok ? "#1d4f49" : "#5a1d1d"); text(ok ? "KEPT" : "BROKEN", P.x + P.w - (big ? 37 : 24), P.y + (big ? 5 : 3), big ? 11 : 8, ok ? PAL.g : PAL.r, "center", 600); }
+  }
+  // labels
+  if (big) {
+    text("CDF", ax.x - 26, ax.y - 14, 9, PAL.s); text("1", ax.x - 10, ax.y - 4, 9, PAL.s); text("0", ax.x - 10, ax.y + ax.h - 10, 9, PAL.s); text(pct(G.rel), ax.x - 26, Y(G.rel) - 5, 9, PAL.y);
+    for (let x = 5; x <= 40; x += 5) text(x + "", X(x), ax.y + ax.h + 4, 9, PAL.s, "center"); text("delivery time (min)", ax.x + ax.w, ax.y + ax.h + 12, 9, PAL.s, "right");
+    text(`Courier #${c.id}`, ax.x + 4, ax.y + 2, 12, PAL.w, "left", 600);
+  } else text(`#${c.id}`, P.x + 4, P.y + 2, 9, PAL.w, "left", 600);
+}
+
+/* ===================== Scene: seasons board ===================== */
+function drawSeasons() {
+  const R = G.seasons; if (!R) return;
+  const rows = [["naive", "REUSE", PAL.r], ["s50", "SPLIT 50/50", PAL.p], ["s60", "SPLIT 60/40", PAL.p], ["s70", "SPLIT 70/30", PAL.p], ["ps", "PS-DME", PAL.g]];
+  px(24, 48, 592, 254, "#06101a");
+  text(`500 SEASONS · ${K} couriers · ${N} runs · pick ${M} · budget: 1 broken certificate in 10`, 36, 54, 11, PAL.y, "left", 600);
+  // left: broken-certificate rate
+  const L = { x: 40, y: 92, w: 250 }, Rr = { x: 350, y: 92, w: 250 };
+  text("BROKEN CERTIFICATES (false coverage rate)", L.x, L.y - 16, 10, PAL.s); text("BAND WIDTH ±ε (smaller is sharper)", Rr.x, Rr.y - 16, 10, PAL.s);
+  const maxF = 0.25, maxE = 0.5;
+  rows.forEach(([key, name, col], i) => {
+    const y = L.y + i * 34; const v = R[key].fcr, e = R[key].eps;
+    text(name, L.x, y, 11, col, "left", 600);
+    px(L.x, y + 14, L.w, 10, "#122"); px(L.x, y + 14, Math.min(L.w, v / maxF * L.w), 10, v > DELTA ? PAL.r : col); text(pct(v), L.x + Math.min(L.w, v / maxF * L.w) + 4, y + 12, 10, v > DELTA ? PAL.r : PAL.w);
+    text(name, Rr.x, y, 11, col, "left", 600);
+    px(Rr.x, y + 14, Rr.w, 10, "#122"); px(Rr.x, y + 14, Math.min(Rr.w, e / maxE * Rr.w), 10, col); text("±" + e.toFixed(3), Rr.x + Math.min(Rr.w, e / maxE * Rr.w) + 4, y + 12, 10, PAL.w);
+  });
+  const bx = L.x + DELTA / maxF * L.w; px(bx, L.y + 8, 2, 5 * 34 - 8, PAL.y); text("10% budget", bx + 4, L.y + 5 * 34 - 6, 9, PAL.y);
+  const g = (key) => R[key].g; const rel = pct(G.rel);
+  text(`Best guaranteed time at ${rel}: REUSE ${g("naive")} · SPLIT 50/50 ${g("s50")} · 60/40 ${g("s60")} · 70/30 ${g("s70")} · PS-DME ${g("ps")}`, 36, 258, 9, PAL.s);
+  text(`Lemma 2: PS-DME is narrower than any split that keeps under ${pct(SPLIT_THRESHOLD)} of the runs for certification, and it picks on all 30.`, 36, 272, 10, PAL.w);
+  text(`Reuse is the sharpest band and the only one over budget. Splitting and PS-DME are both valid; PS-DME has the most slack.`, 36, 286, 10, PAL.w);
+}
+
+/* ===================== Frame ===================== */
+function drawFrame() {
+  px(0, 0, W, H, "#0a1020");
+  const grd = ctx.createLinearGradient(0, 40, 0, H); grd.addColorStop(0, "#0d1730"); grd.addColorStop(1, "#15223a"); ctx.fillStyle = grd; ctx.fillRect(0, 40, W, H - 40);
+  for (let i = 0; i < 40; i++) { const sx = (i * 97 + 13) % W, sy = 48 + (i * 53) % (H - 60); px(sx, sy, 2, 2, (i % 3) ? "#22365a" : "#4e6aa0"); }
+  px(0, 0, W, 40, "#070b14"); px(0, 38, W, 2, PAL.c);
+  text(S.hud || "", 16, 10, 16, PAL.c, "left", 600);
+  text(`SCORE ${String(G.score).padStart(4, "0")}`, W - 16, 10, 16, PAL.y, "right", 600);
+  if (S.mode === "tryouts" || S.mode === "pick" || S.mode === "curse" || S.mode === "idle") drawGridScene();
+  else if (S.mode === "cert") drawCertScene();
+  else if (S.mode === "seasons") drawSeasons();
+  if (S.mode === "pick") { px(0, 248, W, 2, "#163045"); text(`${G.picked.length} / ${M} picked`, W / 2, 256, 12, PAL.y, "center", 600); if (G.proto === "split") text(`SPLIT: you see ${Math.round(N * G.splitShare)} of 30 runs. The other ${N - Math.round(N * G.splitShare)} are sealed (S) for the certificate.`, W / 2, 272, 10, PAL.o, "center"); else text("Average tryout time in minutes. Lower looks better.", W / 2, 272, 10, PAL.s, "center"); }
+  if (S.mode === "idle" && S.idleNote) text(S.idleNote, W / 2, 262, 11, PAL.s, "center");
+}
+function loop() { drawFrame(); requestAnimationFrame(loop); }
+
+/* ===================== Animation helpers ===================== */
+let skipRequested = false;
+const nextFrame = () => new Promise(res => { let done = false; const go = () => { if (!done) { done = true; res(); } }; requestAnimationFrame(go); setTimeout(go, 60); });
+async function animate(ms, fn) { const t0 = performance.now(); let p = 0; while (p < 1) { if (skipRequested) { fn(1); break; } p = Math.min(1, (performance.now() - t0) / ms); fn(p); await nextFrame(); } }
+async function pause(ms) { const t0 = performance.now(); while (performance.now() - t0 < ms && !skipRequested) await nextFrame(); }
+
+/* ===================== UI plumbing ===================== */
+const panels = ["dlg", "protoPanel", "pickBar", "certBar", "resultPanel", "seasonsBar", "titleScreen"];
+function show(id) { for (const p of panels) $(p).hidden = p !== id; }
+function hideAll() { for (const p of panels) $(p).hidden = true; }
+function dialog(txt, pos) { return new Promise(res => { $("dlgText").innerHTML = txt; $("dlg").classList.toggle("top", pos === "top"); show("dlg"); $("dlgOk").focus(); $("dlgOk").onclick = () => { sfx.click(); $("dlg").hidden = true; res(); }; }); }
+function updateScore() { $("scoreOut").textContent = G.score; }
+
+// Hit testing on the canvas for picking couriers and focusing panels
+function canvasPoint(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
+$("layer").addEventListener("mousemove", (e) => { if (S.mode !== "pick") { S.hover = null; return; } const p = canvasPoint(e); S.hover = slotAt(p); });
+$("layer").addEventListener("click", (e) => {
+  if (e.target !== $("layer")) return;
+  const p = canvasPoint(e);
+  if (S.mode === "pick") { const k = slotAt(p); if (k !== null) togglePick(k); return; }
+  if (S.mode === "cert" && S.reveal === undefined) { G.picked.forEach((_, i) => { const P = panelFor(i); if (i !== S.focus && p.x >= P.x && p.x <= P.x + P.w && p.y >= P.y && p.y <= P.y + P.h) { S.focus = i; sfx.click(); } }); return; }
+  skipRequested = true;
+});
+function slotAt(p) { for (let slot = 0; slot < K; slot++) { const c = cellOf(slot); if (p.x >= c.x - 2 && p.x <= c.x + GRID.cw - 4 && p.y >= c.y - 2 && p.y <= c.y + GRID.ch - 4) return G.order[slot]; } return null; }
+function togglePick(k) { const i = G.picked.indexOf(k); if (i >= 0) G.picked.splice(i, 1); else if (G.picked.length < M) G.picked.push(k); else return; sfx.pick(); $("pickDone").disabled = G.picked.length !== M; $("pickText").textContent = G.picked.length === M ? "Five picked. Ready to certify." : `Pick ${M - G.picked.length} more courier${M - G.picked.length === 1 ? "" : "s"}`; }
+$("layer").classList.toggle("pick", false);
+
+$("relDial").oninput = () => { G.rel = Number($("relDial").value) / 100; $("relOut").textContent = pct(G.rel); if (G.seasons) G.seasons = summarizeSeasons(G.seasons.raw); };
+
+/* ===================== Game flow ===================== */
+async function startGame() {
+  G.score = 0; updateScore(); hideAll(); S.mode = "idle"; S.idleNote = ""; S.hud = "THE DEPOT";
+  await dialog("You run a delivery depot. Thirty couriers want the job and you can keep five.<br><br>Each courier does <b>30 test deliveries</b>. You pick the five that look fastest. Then you issue each one a <b>certificate</b>: a band that their true delivery-time distribution must stay inside, so customers can read off a guaranteed time at any reliability level they like.<br><br>You may break at most <b>one certificate in ten</b> on average. Every broken certificate costs you.");
+  await newRound();
+}
+async function newRound() {
+  hideAll(); S.mode = "idle"; S.reveal = undefined; S.badAt = null; G.picked = []; G.certs = []; G.seasons = null;
+  const r = newRng(); G.couriers = makeCouriers(r); for (const c of G.couriers) for (let i = 0; i < N; i++) c.runs.push(sampleRun(c, r));
+  G.order = G.couriers.map((_, i) => i);
+  S.hud = "CHOOSE A PROTOCOL";
+  G.proto = await askProto();
+  // tryouts
+  S.mode = "tryouts"; S.prog = 0; S.hud = "TRYOUTS: 30 test deliveries each"; skipRequested = false;
+  let ticks = 0; await animate(3200, p => { S.prog = p; if (Math.floor(p * 40) > ticks) { ticks++; sfx.tick(); } });
+  // sort by what the player is allowed to see
+  const vis = G.proto === "split" ? Math.round(N * G.splitShare) : N;
+  G.order = topM(G.couriers.map(c => mean(c.runs.slice(0, vis))), K);
+  S.mode = "pick"; $("layer").classList.add("pick"); S.hud = "PICK FIVE COURIERS"; $("pickDone").disabled = true; $("pickText").textContent = `Pick ${M} couriers`;
+  show("pickBar");
+  await new Promise(res => { $("autoPick").onclick = () => { sfx.click(); G.picked = G.order.slice(0, M); $("pickDone").disabled = false; $("pickText").textContent = "Five picked. Ready to certify."; }; $("pickDone").onclick = () => { sfx.click(); res(); }; });
+  $("layer").classList.remove("pick"); hideAll();
+  // the curse
+  S.mode = "curse"; S.prog = 0; S.hud = "THE WINNER'S CURSE"; skipRequested = false;
+  await animate(1400, p => { S.prog = p; });
+  const obsAvg = mean(G.picked.map(k => mean(G.proto === "split" ? G.couriers[k].runs.slice(0, vis) : G.couriers[k].runs))), truAvg = mean(G.picked.map(k => Math.exp(Math.log(G.couriers[k].med) + SIG * SIG / 2)));
+  await dialog(`Your five looked like <b>${f1(obsAvg)} min</b> on average in the tryouts. Their true average is <b>${f1(truAvg)} min</b>.<br><br>Nothing is wrong with the couriers. You picked the five best tryouts out of thirty, and the best tryouts are partly luck. The same data that made them look good now <b>overstates</b> them. That is the winner's curse, and it is why certifying on reused data is dangerous.`, "top");
+  // certificates
+  S.mode = "cert"; S.focus = 0; S.hud = `${PROTO[G.proto].name}: issuing certificates`;
+  if (G.proto === "split") { const nSel = vis; G.certs = G.picked.map(k => certificate(G.couriers[k].runs.slice(nSel), dkwEps(N - nSel, DELTA))); }
+  else G.certs = G.picked.map(k => certificate(G.couriers[k].runs, G.proto === "ps" ? PS.eps : dkwEps(N, DELTA)));
+  sfx.stamp();
+  const e = G.certs[0].eps;
+  const why = G.proto === "naive" ? `Standard band from 30 runs: ±${e.toFixed(2)}. No allowance for having picked these five out of thirty.` : G.proto === "split" ? `Band from the ${N - vis} sealed runs only: ±${e.toFixed(2)}. Valid, because the sealed runs never saw the picking.` : `Band from all 30 runs, widened by the e-value correction: ±${e.toFixed(2)} instead of ±${dkwEps(N, DELTA).toFixed(2)}. The correction depends only on 30 candidates, 5 kept, and the 10% budget.`;
+  $("certText").innerHTML = why + " Move the reliability dial below the screen.";
+  show("certBar");
+  await new Promise(res => { $("revealBtn").onclick = () => { sfx.click(); res(); }; });
+  hideAll();
+  // truth
+  S.hud = "THE TRUTH: 10,000 real deliveries per courier"; S.badAt = G.picked.map((k, i) => checkCoverage(G.certs[i], G.couriers[k])); S.reveal = 0; skipRequested = false;
+  let cracked = false; await animate(3000, p => { S.reveal = p; if (!cracked && S.badAt.some(b => b !== null && b <= XMIN + (XMAX - XMIN) * p)) { cracked = true; sfx.crack(); } });
+  S.reveal = 1;
+  const broken = S.badAt.filter(b => b !== null).length, kept = M - broken;
+  const bestG = Math.min(...G.certs.map(c => c.guaranteed(G.rel)));
+  const tight = Math.round(Math.max(0, 0.5 - e) * 200);
+  const delta = kept * 100 - broken * 250 + (broken ? 0 : tight);
+  G.score += delta; updateScore(); (broken ? sfx.bad : sfx.good)();
+  $("resultTitle").innerHTML = `${PROTO[G.proto].name}: ${kept} kept, ${broken} broken <small>${PROTO[G.proto].long}</small>`;
+  $("verdicts").innerHTML = G.picked.map((k, i) => { const b = S.badAt[i]; const g = G.certs[i].guaranteed(G.rel); return `<div class="vd ${b === null ? "ok" : "miss"}"><b>#${G.couriers[k].id}</b>${b === null ? "kept" : "broken at " + f1(b) + " min"}<br><span class="hint">${g < Infinity ? "≤ " + f1(g) + " min at " + pct(G.rel) : "no " + pct(G.rel) + " guarantee"}</span></div>`; }).join("");
+  $("resultScore").innerHTML = `<div class="score ${broken ? "bad" : ""}">${delta >= 0 ? "+" : ""}${delta}</div><div class="hint">${kept} × 100 kept${broken ? ` − ${broken} × 250 broken` : ` + ${tight} sharpness bonus (band ±${e.toFixed(2)})`}${bestG < Infinity ? ` · best guaranteed time at ${pct(G.rel)}: ${f1(bestG)} min` : ` · no certificate can promise ${pct(G.rel)} with this little data`}</div>`;
+  $("resultNote").innerHTML = G.proto === "naive" ? "One season tells you little: a reused band is the sharpest of the three and often holds. The question is how often it breaks over many seasons. Run 500 seasons to see the rate." : G.proto === "split" ? `Splitting keeps the budget, but you picked on ${vis} runs and certified on ${N - vis}, so both the picks and the bands are weaker than they could be. Run 500 seasons to compare.` : "PS-DME picked on all the data and certified on all the data. The band is wider than naive reuse, and in return it keeps the budget no matter how you picked. Run 500 seasons to compare.";
+  show("resultPanel");
+  $("seasonsBtn").onclick = () => { sfx.click(); runSeasons(); };
+  $("againBtn").onclick = () => { sfx.click(); newRound(); };
+}
+function askProto() {
+  return new Promise(res => {
+    show("protoPanel");
+    for (const o of document.querySelectorAll("#splitOpts span")) o.onclick = (e) => { e.stopPropagation(); sfx.click(); G.splitShare = Number(o.dataset.s); for (const q of document.querySelectorAll("#splitOpts span")) q.setAttribute("aria-pressed", String(q === o)); };
+    for (const b of document.querySelectorAll(".cab")) b.onclick = () => { sfx.click(); $("protoPanel").hidden = true; res(b.dataset.p); };
+  });
+}
+function summarizeSeasons(raw) {
+  const out = { raw };
+  for (const key of Object.keys(raw)) { const arr = raw[key]; const gs = arr.map(s => s.guaranteed(G.rel)).filter(v => v < Infinity); out[key] = { fcr: mean(arr.map(s => s.fcp)), eps: arr[0].eps, g: gs.length ? f1(mean(gs)) + " min" : "none" }; }
+  return out;
+}
+async function runSeasons() {
+  hideAll(); S.mode = "seasons"; S.hud = "500 SEASONS, EVERY PROTOCOL";
+  $("seasonsText").textContent = "Simulating…"; show("seasonsBar");
+  await new Promise(requestAnimationFrame);
+  const r = newRng(), raw = { naive: [], s50: [], s60: [], s70: [], ps: [] };
+  for (let i = 0; i < 500; i++) { raw.naive.push(season("naive", 0, r)); raw.s50.push(season("split", 0.5, r)); raw.s60.push(season("split", 0.6, r)); raw.s70.push(season("split", 0.7, r)); raw.ps.push(season("ps", 0, r)); }
+  G.seasons = summarizeSeasons(raw);
+  const over = G.seasons.naive.fcr > DELTA;
+  $("seasonsText").innerHTML = `Reuse broke ${pct(G.seasons.naive.fcr)} of certificates${over ? " (over budget)" : ""}; PS-DME broke ${pct(G.seasons.ps.fcr)}. The reliability dial still works here.`;
+  $("seasonsBack").onclick = () => { sfx.click(); S.mode = "cert"; show("resultPanel"); };
+  $("seasonsAgain").onclick = () => { sfx.click(); newRound(); };
+  (over ? sfx.crack : sfx.good)();
+}
+
+/* ===================== Wiring ===================== */
+$("newGame").onclick = () => { sfx.click(); startGame(); };
+$("restartBtn").onclick = () => { sfx.click(); skipRequested = true; setTimeout(() => { G.score = 0; updateScore(); S.mode = "idle"; S.hud = "INSERT COIN"; S.reveal = undefined; G.picked = []; show("titleScreen"); }, 50); };
+$("howBtn").onclick = async () => { sfx.click(); $("titleScreen").hidden = true; await dialog("<b>How to play</b><br><br>1. Choose a protocol: naive reuse, data splitting, or the paper's PS-DME.<br>2. Watch the tryouts and pick five couriers (or let the game pick the five fastest-looking).<br>3. See the winner's curse, then read the certificates. The dial under the screen changes the reliability level you want to guarantee.<br>4. Reveal the truth: 10,000 real deliveries per courier. A certificate is broken if the true curve leaves the band anywhere.<br>5. Run 500 seasons to see how often each protocol breaks its certificates.<br><br>Click the picture to skip an animation."); show("titleScreen"); };
+$("soundBtn").onclick = () => { G.sound = !G.sound; $("soundBtn").textContent = `Sound: ${G.sound ? "on" : "off"}`; $("soundBtn").setAttribute("aria-pressed", String(G.sound)); try { localStorage.setItem("pap-sound", G.sound ? "on" : "off"); } catch (e) { } sfx.click(); };
+$("soundBtn").textContent = `Sound: ${G.sound ? "on" : "off"}`; $("soundBtn").setAttribute("aria-pressed", String(G.sound));
+
+// Title screen: a full depot on screen so the picture is never blank
+(function idle() { const r = mulberry32(11); G.couriers = makeCouriers(r); for (const c of G.couriers) for (let i = 0; i < N; i++) c.runs.push(sampleRun(c, r)); G.order = G.couriers.map((_, i) => i); S.mode = "idle"; S.idleNote = "30 couriers · 30 test deliveries each · keep 5 · certify all 5"; })();
+loop();
+const ready = () => { $("newGame").disabled = false; };
+if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('600 16px "Pixelify Sans"'), document.fonts.load('400 16px "Pixelify Sans"')]).then(ready, ready); else ready();
+setTimeout(ready, 2500);
+</script>
+</body>
+</html>
