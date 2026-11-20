@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pick & Promise</title>
-<meta name="description" content="A retro arcade demo of the NeurIPS 2026 paper “Post-Selection Distributional Model Evaluation” by Amirmohammad Farzaneh and Osvaldo Simeone: pick the best couriers from tryouts, then certify their delivery times without fooling yourself.">
+<meta name="description" content="A retro arcade demo of the NeurIPS 2026 paper “Post-Selection Distributional Model Evaluation” by Amirmohammad Farzaneh and Osvaldo Simeone: hire the fastest delivery riders from a tryout, then promise customers how fast they are, without fooling yourself.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
@@ -124,7 +124,7 @@ button:focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
 <div class="wrap">
   <header>
     <h1>Pick &amp; Promise</h1>
-    <p>An arcade demo of the paper <em>Post-Selection Distributional Model Evaluation</em>. Pick the fastest couriers from tryouts, then certify how fast they really are, using the same data, without fooling yourself. <a class="back" href="../../games.html">All games →</a></p>
+    <p>An arcade demo of the paper <em>Post-Selection Distributional Model Evaluation</em>. You run a delivery company. Hire the riders who look fastest in a tryout, then promise customers how fast they really are, using the same tryout data, without fooling yourself. <a class="back" href="../../games.html">All games →</a></p>
   </header>
 
   <div class="bezel">
@@ -142,21 +142,21 @@ button:focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
 
         <div id="protoPanel" class="overlay" hidden>
           <div class="box wide" role="dialog" aria-modal="true" aria-labelledby="protoTitle">
-            <h3 id="protoTitle">Choose your protocol</h3>
-            <p class="hint">Every courier runs 30 test deliveries. You will pick 5 couriers, then issue each a certificate: a band that their whole delivery-time distribution must stay inside. One broken certificate in ten is the most you are allowed, on average.</p>
+            <h3 id="protoTitle">How will you make your promise?</h3>
+            <p class="hint">Thirty riders each make 30 test deliveries. You hire the 5 who look fastest. Then you give each of them a <b>promise card</b>: a shaded zone on a chart that says “this rider's true delivery times stay inside here”. If reality ever leaves the zone, the promise is broken. You may break at most 1 promise in 10. Three ways to write the promise:</p>
             <div class="cabs">
-              <button class="cab naive" data-p="naive"><b>REUSE</b><span>Pick on all 30 runs, certify on the same 30 runs, standard band.</span><span class="tag">The naive approach. No post-selection correction.</span></button>
-              <button class="cab split" data-p="split"><b>SPLIT</b><span>Pick on a share of the runs, seal the rest, certify on the sealed runs only.</span><span class="tag">Valid, but wasteful. Share used for picking:</span><span class="opts" id="splitOpts"><span data-s="0.5" aria-pressed="false">50%</span><span data-s="0.6" aria-pressed="false">60%</span><span data-s="0.7" aria-pressed="true">70%</span></span></button>
-              <button class="cab ps" data-p="ps"><b>PS-DME</b><span>Pick on all 30 runs, certify on all 30 runs, band widened by an e-value correction for having looked.</span><span class="tag">The paper's method. Valid for any way of picking.</span></button>
+              <button class="cab naive" data-p="naive"><b>REUSE</b><span>Hire using all 30 deliveries, then write the promise from the same 30 deliveries.</span><span class="tag">The obvious approach. Ignores that you already used the data to choose.</span></button>
+              <button class="cab split" data-p="split"><b>SPLIT</b><span>Hire using only part of the deliveries. Keep the rest sealed and write the promise from those alone.</span><span class="tag">Safe, but wastes data. Share used for hiring:</span><span class="opts" id="splitOpts"><span data-s="0.5" aria-pressed="false">50%</span><span data-s="0.6" aria-pressed="false">60%</span><span data-s="0.7" aria-pressed="true">70%</span></span></button>
+              <button class="cab ps" data-p="ps"><b>PS-DME</b><span>Hire using all 30 deliveries and write the promise from all 30, but make the zone wider to pay for having looked first.</span><span class="tag">The paper's method. Safe however you choose your riders.</span></button>
             </div>
           </div>
         </div>
 
         <div id="pickBar" class="overlay bar" hidden>
           <div class="box slim">
-            <span id="pickText">Pick 5 couriers</span>
-            <button class="ghost" id="autoPick">Pick the 5 fastest-looking</button>
-            <button id="pickDone" disabled>Certify these 5</button>
+            <span id="pickText">Hire 5 riders</span>
+            <button class="ghost" id="autoPick">Auto-hire the fastest 5</button>
+            <button id="pickDone" disabled>Write their promises</button>
           </div>
         </div>
 
@@ -173,21 +173,21 @@ button:focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
             <div class="verdicts" id="verdicts"></div>
             <div id="resultScore"></div>
             <p id="resultNote" class="hint"></p>
-            <div class="row end"><button class="ghost" id="seasonsBtn">Run 500 seasons</button><button id="againBtn">New tryouts</button></div>
+            <div class="row end"><button class="ghost" id="seasonsBtn">Replay 500 times</button><button id="againBtn">Play again</button></div>
           </div>
         </div>
 
         <div id="seasonsBar" class="overlay bar" hidden>
           <div class="box slim">
             <span id="seasonsText"></span>
-            <button class="ghost" id="seasonsBack">Back</button>
-            <button id="seasonsAgain">New tryouts</button>
+            <button class="ghost" id="seasonsBack">Back to my game</button>
+            <button id="seasonsAgain">Play again</button>
           </div>
         </div>
 
         <div id="titleScreen" class="overlay title">
           <h2>Pick &amp; Promise</h2>
-          <p>Thirty couriers, thirty test runs each. Pick your five fastest, then put your name on a certificate of how fast they really are. The catch: the ones that looked best were partly lucky.</p>
+          <p>You run a delivery company. Thirty riders apply, each makes 30 test deliveries, and you hire the five who look fastest. Then you promise your customers how fast those five really are. The catch: the riders who looked best were partly lucky.</p>
           <div class="row"><button id="newGame" disabled>Insert coin</button><button id="howBtn">How it works</button></div>
         </div>
 
@@ -196,7 +196,7 @@ button:focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
   </div>
 
   <div class="controls">
-    <div class="dial"><label for="relDial">Reliability</label><input id="relDial" type="range" min="50" max="95" step="5" value="60"><strong id="relOut">60%</strong><span class="legend" aria-label="Trace colours" style="margin-left:6px"><span class="t">truth</span><span class="n">Reuse</span><span class="s">Split</span><span class="p">PS-DME</span></span></div>
+    <div class="dial"><label for="relDial" title="The share of deliveries the promised time must cover">Promise covers</label><input id="relDial" type="range" min="50" max="95" step="5" value="60"><strong id="relOut">60%</strong><span style="margin-left:4px">of deliveries</span><span class="legend" aria-label="Trace colours" style="margin-left:6px"><span class="t">truth</span><span class="n">Reuse</span><span class="s">Split</span><span class="p">PS-DME</span></span></div>
     <div class="meta">
       <span>Score <strong id="scoreOut">0</strong></span>
       <button class="plain" id="soundBtn" aria-pressed="true">Sound: on</button>
@@ -209,23 +209,23 @@ button:focus-visible { outline: 3px solid var(--accent2); outline-offset: 3px; }
     <h2>What the game shows</h2>
     <div>
       <h3>The winner's curse</h3>
-      <p>You compare many candidates on limited data and keep the ones that look best. Part of what made them look best was luck, so the same data now <b>overstates</b> how good they are. In the game the five picked couriers are always a little slower than their tryouts suggested.</p>
+      <p>You compare many candidates on limited data and keep the ones that look best. Part of what made them look best was luck, so the same data now <b>overstates</b> how good they are. In the game the five hired riders are always a little slower than their tryouts suggested.</p>
     </div>
     <div>
-      <h3>Certificates for whole distributions</h3>
-      <p>A single target (“under 15 minutes”) is often not known in advance. The paper certifies the <b>entire distribution</b> of a KPI with a confidence band around its cumulative distribution function. From one band you can read off the guaranteed time at any reliability level, which is what the dial under the screen does.</p>
+      <h3>A promise about the whole picture</h3>
+      <p>Often you do not know in advance which single target matters (“under 15 minutes”?). So the paper certifies the <b>whole spread</b> of a performance measure: a shaded zone around the curve that shows what share of deliveries finish within any given time. From one zone you can read off a guaranteed time for any share of deliveries, which is what the dial under the screen does.</p>
     </div>
     <div>
       <h3>Reuse, split, or correct</h3>
-      <p>Reusing the data naively breaks more than the allowed one certificate in ten. Splitting the data is valid but throws away samples, so bands get wider and picks get worse. <b>PS-DME</b> reuses everything and pays a correction, computed with e-values, that depends only on how many candidates you looked at and how many you kept.</p>
+      <p>Reusing the data naively breaks more than the allowed one promise in ten. Splitting the data is safe but throws away samples, so the zones get wider and the hiring gets worse. <b>PS-DME</b> reuses everything and pays a correction, computed with e-values, that depends only on how many candidates you looked at and how many you kept.</p>
     </div>
     <div>
       <h3>When is the correction worth it?</h3>
-      <p>The paper gives the exact condition (Lemma 2): PS-DME's band is narrower than splitting whenever the split would reserve less than a threshold share of the data for certification. Picking 5 of 30 is a harsh selection, so the correction is large and the threshold here is about 39%: PS-DME beats a 70/30 split, ties 60/40, and a 50/50 split is a little sharper but has to pick on half the data. Keep more candidates and the correction shrinks.</p>
+      <p>The paper gives the exact condition (Lemma 2): PS-DME's zone is narrower than splitting whenever the split would keep less than a threshold share of the data for the promise. Hiring 5 of 30 is a harsh selection, so the correction is large and the threshold here is about 39%: PS-DME beats a 70/30 split, ties 60/40, and a 50/50 split is a little sharper but has to hire on half the data. Keep more candidates and the correction shrinks.</p>
     </div>
   </section>
 
-  <p class="cite">A. Farzaneh, O. Simeone, “Post-Selection Distributional Model Evaluation,” <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, 2026. <a href="https://arxiv.org/abs/2603.23055" target="_blank" rel="noopener">arXiv:2603.23055</a>. The couriers are a toy; the bands, the error criterion (false coverage rate) and the three protocols are the paper's. Game by <a href="https://afarzaneh.com">Amirmohammad Farzaneh</a>.</p>
+  <p class="cite">A. Farzaneh, O. Simeone, “Post-Selection Distributional Model Evaluation,” <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, 2026. <a href="https://arxiv.org/abs/2603.23055" target="_blank" rel="noopener">arXiv:2603.23055</a>. The riders are a toy; the shaded zones (confidence bands for the CDF), the error criterion (false coverage rate) and the three methods are the paper's. Game by <a href="https://afarzaneh.com">Amirmohammad Farzaneh</a>.</p>
 </div>
 
 <script>
@@ -318,7 +318,7 @@ function drawGridScene() {
     text("#" + c.id, x + 2, y + 1, 9, PAL.s);
     if (shown > 0) { const arr = c.runs.slice(0, shown); const m = mean(arr); text(f1(m), x + GRID.cw / 2 - 2, y + 40, 12, S.mode === "pick" || S.mode === "curse" ? PAL.y : PAL.w, "center", 600); }
     if (S.mode === "tryouts") { px(x + 6, y + 54, 44, 3, "#223"); px(x + 6, y + 54, 44 * shown / vis, 3, PAL.c); }
-    else if (shown > 0) text(`${shown} runs`, x + GRID.cw / 2 - 2, y + 53, 8, PAL.s, "center");
+    else if (shown > 0) text(`${shown} deliv.`, x + GRID.cw / 2 - 2, y + 53, 8, PAL.s, "center");
     if (G.proto === "split" && S.mode !== "tryouts") { px(x + 44, y + 2, 10, 8, PAL.o); text("S", x + 49, y + 1, 8, PAL.k, "center", 600); }
   }
   if (S.mode === "curse") drawCurse();
@@ -326,7 +326,7 @@ function drawGridScene() {
 function drawCurse() {
   // Observed average vs true average for the picked five, as paired bars under the grid.
   const x0 = 60, y0 = 262, w = 520; px(x0 - 20, y0 - 20, w + 40, 150, "#06101a");
-  text("THE PICKED FIVE: tryout average vs true average (minutes)", x0, y0 - 16, 11, PAL.y, "left", 600);
+  text("YOUR FIVE RIDERS: average time in the tryout (yellow) vs their true average (white), in minutes", x0, y0 - 16, 11, PAL.y, "left", 600);
   const scale = 520 / 20;
   const p = S.prog === undefined ? 1 : S.prog;
   G.picked.forEach((k, i) => {
@@ -341,7 +341,7 @@ function drawCurse() {
 const BIG = { x: 36, y: 56, w: 360, h: 290 }, SMALL = { x: 420, y: 56, w: 196, h: 54, gap: 6 };
 function panelFor(i) { if (i === S.focus) return BIG; const j = G.picked.map((_, q) => q).filter(q => q !== S.focus).indexOf(i); return { x: SMALL.x, y: SMALL.y + j * (SMALL.h + SMALL.gap), w: SMALL.w, h: SMALL.h }; }
 function drawCertScene() {
-  text(`${PROTO[G.proto].name} certificates · band ±${PS && G.certs[0] ? G.certs[0].eps.toFixed(2) : ""} · reliability ${pct(G.rel)}`, 36, 42, 11, PAL.s);
+  text(`${PROTO[G.proto].name} promises · zone half-width ±${PS && G.certs[0] ? G.certs[0].eps.toFixed(2) : ""} · promise covers ${pct(G.rel)} of deliveries`, 36, 42, 11, PAL.s);
   G.picked.forEach((k, i) => drawCDFPanel(G.couriers[k], G.certs[i], panelFor(i), i === S.focus, i));
   text("click a small panel to focus it", SMALL.x, SMALL.y + 5 * (SMALL.h + SMALL.gap) - 2, 9, PAL.s);
 }
@@ -361,8 +361,8 @@ function drawCDFPanel(c, cert, P, big, i) {
   // reliability line and guaranteed time
   const g = cert.guaranteed(G.rel);
   ctx.setLineDash([3, 3]); ctx.strokeStyle = PAL.y; ctx.beginPath(); ctx.moveTo(ax.x, Y(G.rel)); ctx.lineTo(ax.x + ax.w, Y(G.rel)); ctx.stroke(); ctx.setLineDash([]);
-  if (g < Infinity) { px(X(g) - 1, Y(G.rel), 2, ax.y + ax.h - Y(G.rel), PAL.y); if (big) text(`guaranteed ≤ ${f1(g)} min at ${pct(G.rel)}`, clamp(X(g) + 4, ax.x, ax.x + ax.w - 150), Y(G.rel) + 4, 11, PAL.y, "left", 600); }
-  else if (big) text(`cannot certify ${pct(G.rel)} with ${cert.n} runs`, ax.x + 6, Y(G.rel) + 4, 11, PAL.y, "left", 600);
+  if (g < Infinity) { px(X(g) - 1, Y(G.rel), 2, ax.y + ax.h - Y(G.rel), PAL.y); if (big) text(`promise: ${pct(G.rel)} within ${f1(g)} min`, clamp(X(g) + 4, ax.x, ax.x + ax.w - 150), Y(G.rel) + 4, 11, PAL.y, "left", 600); }
+  else if (big) text(`too little data to promise ${pct(G.rel)}`, ax.x + 6, Y(G.rel) + 4, 11, PAL.y, "left", 600);
   // truth
   if (S.reveal !== undefined) {
     const p = S.reveal, bad = S.badAt ? S.badAt[i] : null; let crossed = false;
@@ -377,7 +377,7 @@ function drawCDFPanel(c, cert, P, big, i) {
   if (big) {
     text("CDF", ax.x - 26, ax.y - 14, 9, PAL.s); text("1", ax.x - 10, ax.y - 4, 9, PAL.s); text("0", ax.x - 10, ax.y + ax.h - 10, 9, PAL.s); text(pct(G.rel), ax.x - 26, Y(G.rel) - 5, 9, PAL.y);
     for (let x = 5; x <= 40; x += 5) text(x + "", X(x), ax.y + ax.h + 4, 9, PAL.s, "center"); text("delivery time (min)", ax.x + ax.w, ax.y + ax.h + 12, 9, PAL.s, "right");
-    text(`Courier #${c.id}`, ax.x + 4, ax.y + 2, 12, PAL.w, "left", 600);
+    text(`Rider #${c.id}`, ax.x + 4, ax.y + 2, 12, PAL.w, "left", 600);
   } else text(`#${c.id}`, P.x + 4, P.y + 2, 9, PAL.w, "left", 600);
 }
 
@@ -386,23 +386,23 @@ function drawSeasons() {
   const R = G.seasons; if (!R) return;
   const rows = [["naive", "REUSE", PAL.r], ["s50", "SPLIT 50/50", PAL.p], ["s60", "SPLIT 60/40", PAL.p], ["s70", "SPLIT 70/30", PAL.p], ["ps", "PS-DME", PAL.g]];
   px(24, 48, 592, 254, "#06101a");
-  text(`500 SEASONS · ${K} couriers · ${N} runs · pick ${M} · budget: 1 broken certificate in 10`, 36, 54, 11, PAL.y, "left", 600);
+  text(`THE WHOLE GAME REPLAYED 500 TIMES · ${K} riders · ${N} test deliveries · hire ${M} · allowed: 1 broken promise in 10`, 36, 52, 11, PAL.y, "left", 600);
   // left: broken-certificate rate
-  const L = { x: 40, y: 92, w: 250 }, Rr = { x: 350, y: 92, w: 250 };
-  text("BROKEN CERTIFICATES (false coverage rate)", L.x, L.y - 16, 10, PAL.s); text("BAND WIDTH ±ε (smaller is sharper)", Rr.x, Rr.y - 16, 10, PAL.s);
+  const L = { x: 40, y: 122, w: 250 }, Rr = { x: 350, y: 122, w: 250 };
+  text("BROKEN PROMISES (share of hired riders)", L.x, L.y - 14, 10, PAL.s); text("ZONE HALF-WIDTH (smaller = more precise promise)", Rr.x, Rr.y - 14, 10, PAL.s);
   const maxF = 0.25, maxE = 0.5;
   rows.forEach(([key, name, col], i) => {
-    const y = L.y + i * 34; const v = R[key].fcr, e = R[key].eps;
+    const y = L.y + i * 31; const v = R[key].fcr, e = R[key].eps;
     text(name, L.x, y, 11, col, "left", 600);
     px(L.x, y + 14, L.w, 10, "#122"); px(L.x, y + 14, Math.min(L.w, v / maxF * L.w), 10, v > DELTA ? PAL.r : col); text(pct(v), L.x + Math.min(L.w, v / maxF * L.w) + 4, y + 12, 10, v > DELTA ? PAL.r : PAL.w);
     text(name, Rr.x, y, 11, col, "left", 600);
     px(Rr.x, y + 14, Rr.w, 10, "#122"); px(Rr.x, y + 14, Math.min(Rr.w, e / maxE * Rr.w), 10, col); text("±" + e.toFixed(3), Rr.x + Math.min(Rr.w, e / maxE * Rr.w) + 4, y + 12, 10, PAL.w);
   });
-  const bx = L.x + DELTA / maxF * L.w; px(bx, L.y + 8, 2, 5 * 34 - 8, PAL.y); text("10% budget", bx + 4, L.y + 5 * 34 - 6, 9, PAL.y);
+  const bx = L.x + DELTA / maxF * L.w; px(bx, L.y + 8, 2, 5 * 31 - 8, PAL.y); text("10% allowed", bx + 4, L.y + 5 * 31 - 6, 9, PAL.y);
   const g = (key) => R[key].g; const rel = pct(G.rel);
-  text(`Best guaranteed time at ${rel}: REUSE ${g("naive")} · SPLIT 50/50 ${g("s50")} · 60/40 ${g("s60")} · 70/30 ${g("s70")} · PS-DME ${g("ps")}`, 36, 258, 9, PAL.s);
-  text(`Lemma 2: PS-DME is narrower than any split that keeps under ${pct(SPLIT_THRESHOLD)} of the runs for certification, and it picks on all 30.`, 36, 272, 10, PAL.w);
-  text(`Reuse is the sharpest band and the only one over budget. Splitting and PS-DME are both valid; PS-DME has the most slack.`, 36, 286, 10, PAL.w);
+  text(`Best promised time covering ${rel} of deliveries: REUSE ${g("naive")} · SPLIT 50/50 ${g("s50")} · 60/40 ${g("s60")} · 70/30 ${g("s70")} · PS-DME ${g("ps")}`, 36, 92, 9, PAL.s);
+  text(`PS-DME gives a tighter zone than any split that keeps under ${pct(SPLIT_THRESHOLD)} of the deliveries for the promise, and it hires using all 30.`, 36, 66, 10, PAL.w);
+  text(`Reuse gives the tightest zone but breaks too many promises. Split and PS-DME both keep their word.`, 36, 79, 10, PAL.w);
 }
 
 /* ===================== Frame ===================== */
@@ -416,7 +416,7 @@ function drawFrame() {
   if (S.mode === "tryouts" || S.mode === "pick" || S.mode === "curse" || S.mode === "idle") drawGridScene();
   else if (S.mode === "cert") drawCertScene();
   else if (S.mode === "seasons") drawSeasons();
-  if (S.mode === "pick") { px(0, 248, W, 2, "#163045"); text(`${G.picked.length} / ${M} picked`, W / 2, 256, 12, PAL.y, "center", 600); if (G.proto === "split") text(`SPLIT: you see ${Math.round(N * G.splitShare)} of 30 runs. The other ${N - Math.round(N * G.splitShare)} are sealed (S) for the certificate.`, W / 2, 272, 10, PAL.o, "center"); else text("Average tryout time in minutes. Lower looks better.", W / 2, 272, 10, PAL.s, "center"); }
+  if (S.mode === "pick") { px(0, 248, W, 2, "#163045"); text(`${G.picked.length} / ${M} hired · click a rider to hire or unhire`, W / 2, 256, 12, PAL.y, "center", 600); if (G.proto === "split") text(`SPLIT: you only see ${Math.round(N * G.splitShare)} of each rider's 30 deliveries. The other ${N - Math.round(N * G.splitShare)} are sealed (S) and saved for the promise.`, W / 2, 272, 10, PAL.o, "center"); else text("Number shown = average delivery time in the tryout, in minutes. Lower looks better.", W / 2, 272, 10, PAL.s, "center"); }
   if (S.mode === "idle" && S.idleNote) text(S.idleNote, W / 2, 262, 11, PAL.s, "center");
 }
 function loop() { drawFrame(); requestAnimationFrame(loop); }
@@ -445,7 +445,7 @@ $("layer").addEventListener("click", (e) => {
   skipRequested = true;
 });
 function slotAt(p) { for (let slot = 0; slot < K; slot++) { const c = cellOf(slot); if (p.x >= c.x - 2 && p.x <= c.x + GRID.cw - 4 && p.y >= c.y - 2 && p.y <= c.y + GRID.ch - 4) return G.order[slot]; } return null; }
-function togglePick(k) { const i = G.picked.indexOf(k); if (i >= 0) G.picked.splice(i, 1); else if (G.picked.length < M) G.picked.push(k); else return; sfx.pick(); $("pickDone").disabled = G.picked.length !== M; $("pickText").textContent = G.picked.length === M ? "Five picked. Ready to certify." : `Pick ${M - G.picked.length} more courier${M - G.picked.length === 1 ? "" : "s"}`; }
+function togglePick(k) { const i = G.picked.indexOf(k); if (i >= 0) G.picked.splice(i, 1); else if (G.picked.length < M) G.picked.push(k); else return; sfx.pick(); $("pickDone").disabled = G.picked.length !== M; $("pickText").textContent = G.picked.length === M ? "Five hired." : `Hire ${M - G.picked.length} more rider${M - G.picked.length === 1 ? "" : "s"}`; }
 $("layer").classList.toggle("pick", false);
 
 $("relDial").oninput = () => { G.rel = Number($("relDial").value) / 100; $("relOut").textContent = pct(G.rel); if (G.seasons) G.seasons = summarizeSeasons(G.seasons.raw); };
@@ -453,43 +453,43 @@ $("relDial").oninput = () => { G.rel = Number($("relDial").value) / 100; $("relO
 /* ===================== Game flow ===================== */
 async function startGame() {
   G.score = 0; updateScore(); hideAll(); S.mode = "idle"; S.idleNote = ""; S.hud = "THE DEPOT";
-  await dialog("You run a delivery depot. Thirty couriers want the job and you can keep five.<br><br>Each courier does <b>30 test deliveries</b>. You pick the five that look fastest. Then you issue each one a <b>certificate</b>: a band that their true delivery-time distribution must stay inside, so customers can read off a guaranteed time at any reliability level they like.<br><br>You may break at most <b>one certificate in ten</b> on average. Every broken certificate costs you.");
+  await dialog("You run a delivery company. <b>Thirty riders</b> want the job and you can hire <b>five</b>.<br><br>Each rider makes <b>30 test deliveries</b> and you see how long each one took. You hire the five who look fastest.<br><br>Then you make customers a <b>promise</b> about each hired rider: a chart with a shaded zone that their true delivery times must stay inside. Customers read it like this: “6 out of 10 deliveries arrive within 17 minutes”. If reality ever leaves the zone, the promise is broken.<br><br>You may break at most <b>1 promise in 10</b>. Every broken promise costs you points.");
   await newRound();
 }
 async function newRound() {
   hideAll(); S.mode = "idle"; S.reveal = undefined; S.badAt = null; G.picked = []; G.certs = []; G.seasons = null;
   const r = newRng(); G.couriers = makeCouriers(r); for (const c of G.couriers) for (let i = 0; i < N; i++) c.runs.push(sampleRun(c, r));
   G.order = G.couriers.map((_, i) => i);
-  S.hud = "CHOOSE A PROTOCOL";
+  S.hud = "HOW WILL YOU MAKE YOUR PROMISE?";
   G.proto = await askProto();
   // tryouts
-  S.mode = "tryouts"; S.prog = 0; S.hud = "TRYOUTS: 30 test deliveries each"; skipRequested = false;
+  S.mode = "tryouts"; S.prog = 0; S.hud = "TRYOUT: every rider makes 30 test deliveries"; skipRequested = false;
   let ticks = 0; await animate(3200, p => { S.prog = p; if (Math.floor(p * 40) > ticks) { ticks++; sfx.tick(); } });
   // sort by what the player is allowed to see
   const vis = G.proto === "split" ? Math.round(N * G.splitShare) : N;
   G.order = topM(G.couriers.map(c => mean(c.runs.slice(0, vis))), K);
-  S.mode = "pick"; $("layer").classList.add("pick"); S.hud = "PICK FIVE COURIERS"; $("pickDone").disabled = true; $("pickText").textContent = `Pick ${M} couriers`;
+  S.mode = "pick"; $("layer").classList.add("pick"); S.hud = "HIRE FIVE RIDERS"; $("pickDone").disabled = true; $("pickText").textContent = `Hire ${M} riders`;
   show("pickBar");
-  await new Promise(res => { $("autoPick").onclick = () => { sfx.click(); G.picked = G.order.slice(0, M); $("pickDone").disabled = false; $("pickText").textContent = "Five picked. Ready to certify."; }; $("pickDone").onclick = () => { sfx.click(); res(); }; });
+  await new Promise(res => { $("autoPick").onclick = () => { sfx.click(); G.picked = G.order.slice(0, M); $("pickDone").disabled = false; $("pickText").textContent = "Five hired."; }; $("pickDone").onclick = () => { sfx.click(); res(); }; });
   $("layer").classList.remove("pick"); hideAll();
   // the curse
-  S.mode = "curse"; S.prog = 0; S.hud = "THE WINNER'S CURSE"; skipRequested = false;
+  S.mode = "curse"; S.prog = 0; S.hud = "THE WINNER'S CURSE: they looked faster than they are"; skipRequested = false;
   await animate(1400, p => { S.prog = p; });
   const obsAvg = mean(G.picked.map(k => mean(G.proto === "split" ? G.couriers[k].runs.slice(0, vis) : G.couriers[k].runs))), truAvg = mean(G.picked.map(k => Math.exp(Math.log(G.couriers[k].med) + SIG * SIG / 2)));
-  await dialog(`Your five looked like <b>${f1(obsAvg)} min</b> on average in the tryouts. Their true average is <b>${f1(truAvg)} min</b>.<br><br>Nothing is wrong with the couriers. You picked the five best tryouts out of thirty, and the best tryouts are partly luck. The same data that made them look good now <b>overstates</b> them. That is the winner's curse, and it is why certifying on reused data is dangerous.`, "top");
+  await dialog(`In the tryout your five riders averaged <b>${f1(obsAvg)} min</b>. Their true average is <b>${f1(truAvg)} min</b>.<br><br>Nothing is wrong with the riders. You hired the five best tryouts out of thirty, and the best tryouts are always partly luck. So the same tryout data now makes them look <b>better than they are</b>. This is called the winner's curse, and it is why writing a promise from reused data is risky.`, "top");
   // certificates
-  S.mode = "cert"; S.focus = 0; S.hud = `${PROTO[G.proto].name}: issuing certificates`;
+  S.mode = "cert"; S.focus = 0; S.hud = `${PROTO[G.proto].name}: writing the promises`;
   if (G.proto === "split") { const nSel = vis; G.certs = G.picked.map(k => certificate(G.couriers[k].runs.slice(nSel), dkwEps(N - nSel, DELTA))); }
   else G.certs = G.picked.map(k => certificate(G.couriers[k].runs, G.proto === "ps" ? PS.eps : dkwEps(N, DELTA)));
   sfx.stamp();
   const e = G.certs[0].eps;
-  const why = G.proto === "naive" ? `Standard band from 30 runs: ±${e.toFixed(2)}. No allowance for having picked these five out of thirty.` : G.proto === "split" ? `Band from the ${N - vis} sealed runs only: ±${e.toFixed(2)}. Valid, because the sealed runs never saw the picking.` : `Band from all 30 runs, widened by the e-value correction: ±${e.toFixed(2)} instead of ±${dkwEps(N, DELTA).toFixed(2)}. The correction depends only on 30 candidates, 5 kept, and the 10% budget.`;
-  $("certText").innerHTML = why + " Move the reliability dial below the screen.";
+  const why = G.proto === "naive" ? `The shaded zone comes from the same 30 deliveries you used to hire. It makes no allowance for having picked these five out of thirty.` : G.proto === "split" ? `The shaded zone comes from the ${N - vis} sealed deliveries only. Safe, because those deliveries played no part in the hiring, but there are few of them, so the zone is wide.` : `The shaded zone comes from all 30 deliveries, made wider by the paper's correction (±${e.toFixed(2)} instead of ±${dkwEps(N, DELTA).toFixed(2)}) to pay for having looked at the data first. The correction depends only on 30 candidates, 5 hired, and the 1-in-10 allowance.`;
+  $("certText").innerHTML = why + " The green line is the tryout data; the yellow marker is the promised time. Move the dial under the screen to change how many deliveries the promise must cover.";
   show("certBar");
   await new Promise(res => { $("revealBtn").onclick = () => { sfx.click(); res(); }; });
   hideAll();
   // truth
-  S.hud = "THE TRUTH: 10,000 real deliveries per courier"; S.badAt = G.picked.map((k, i) => checkCoverage(G.certs[i], G.couriers[k])); S.reveal = 0; skipRequested = false;
+  S.hud = "THE TRUTH: what 10,000 real deliveries look like"; S.badAt = G.picked.map((k, i) => checkCoverage(G.certs[i], G.couriers[k])); S.reveal = 0; skipRequested = false;
   let cracked = false; await animate(3000, p => { S.reveal = p; if (!cracked && S.badAt.some(b => b !== null && b <= XMIN + (XMAX - XMIN) * p)) { cracked = true; sfx.crack(); } });
   S.reveal = 1;
   const broken = S.badAt.filter(b => b !== null).length, kept = M - broken;
@@ -497,10 +497,10 @@ async function newRound() {
   const tight = Math.round(Math.max(0, 0.5 - e) * 200);
   const delta = kept * 100 - broken * 250 + (broken ? 0 : tight);
   G.score += delta; updateScore(); (broken ? sfx.bad : sfx.good)();
-  $("resultTitle").innerHTML = `${PROTO[G.proto].name}: ${kept} kept, ${broken} broken <small>${PROTO[G.proto].long}</small>`;
-  $("verdicts").innerHTML = G.picked.map((k, i) => { const b = S.badAt[i]; const g = G.certs[i].guaranteed(G.rel); return `<div class="vd ${b === null ? "ok" : "miss"}"><b>#${G.couriers[k].id}</b>${b === null ? "kept" : "broken at " + f1(b) + " min"}<br><span class="hint">${g < Infinity ? "≤ " + f1(g) + " min at " + pct(G.rel) : "no " + pct(G.rel) + " guarantee"}</span></div>`; }).join("");
-  $("resultScore").innerHTML = `<div class="score ${broken ? "bad" : ""}">${delta >= 0 ? "+" : ""}${delta}</div><div class="hint">${kept} × 100 kept${broken ? ` − ${broken} × 250 broken` : ` + ${tight} sharpness bonus (band ±${e.toFixed(2)})`}${bestG < Infinity ? ` · best guaranteed time at ${pct(G.rel)}: ${f1(bestG)} min` : ` · no certificate can promise ${pct(G.rel)} with this little data`}</div>`;
-  $("resultNote").innerHTML = G.proto === "naive" ? "One season tells you little: a reused band is the sharpest of the three and often holds. The question is how often it breaks over many seasons. Run 500 seasons to see the rate." : G.proto === "split" ? `Splitting keeps the budget, but you picked on ${vis} runs and certified on ${N - vis}, so both the picks and the bands are weaker than they could be. Run 500 seasons to compare.` : "PS-DME picked on all the data and certified on all the data. The band is wider than naive reuse, and in return it keeps the budget no matter how you picked. Run 500 seasons to compare.";
+  $("resultTitle").innerHTML = `${PROTO[G.proto].name}: ${kept} promise${kept === 1 ? "" : "s"} kept, ${broken} broken <small>${PROTO[G.proto].long}</small>`;
+  $("verdicts").innerHTML = G.picked.map((k, i) => { const b = S.badAt[i]; const g = G.certs[i].guaranteed(G.rel); return `<div class="vd ${b === null ? "ok" : "miss"}"><b>#${G.couriers[k].id}</b>${b === null ? "kept" : "broken at " + f1(b) + " min"}<br><span class="hint">${g < Infinity ? pct(G.rel) + " within " + f1(g) + " min" : "cannot promise " + pct(G.rel)}</span></div>`; }).join("");
+  $("resultScore").innerHTML = `<div class="score ${broken ? "bad" : ""}">${delta >= 0 ? "+" : ""}${delta}</div><div class="hint">${kept} × 100 kept${broken ? ` − ${broken} × 250 broken` : ` + ${tight} bonus for a precise promise (zone ±${e.toFixed(2)})`}${bestG < Infinity ? ` · best promise: ${pct(G.rel)} of deliveries within ${f1(bestG)} min` : ` · with this little data nobody can promise ${pct(G.rel)} of deliveries`}</div>`;
+  $("resultNote").innerHTML = G.proto === "naive" ? "One game tells you little: a reused zone is the most precise of the three and often holds. The question is how often it breaks if you play again and again. Replay the whole game 500 times to see the rate." : G.proto === "split" ? `Splitting keeps your word, but you hired on ${vis} deliveries and promised on ${N - vis}, so both the hiring and the promise are weaker than they could be. Replay 500 times to compare.` : "PS-DME hired on all the data and promised on all the data. The zone is wider than with naive reuse, and in return the promise holds however you chose your riders. Replay 500 times to compare.";
   show("resultPanel");
   $("seasonsBtn").onclick = () => { sfx.click(); runSeasons(); };
   $("againBtn").onclick = () => { sfx.click(); newRound(); };
@@ -518,14 +518,14 @@ function summarizeSeasons(raw) {
   return out;
 }
 async function runSeasons() {
-  hideAll(); S.mode = "seasons"; S.hud = "500 SEASONS, EVERY PROTOCOL";
+  hideAll(); S.mode = "seasons"; S.hud = "THE GAME REPLAYED 500 TIMES, EACH WAY";
   $("seasonsText").textContent = "Simulating…"; show("seasonsBar");
   await new Promise(requestAnimationFrame);
   const r = newRng(), raw = { naive: [], s50: [], s60: [], s70: [], ps: [] };
   for (let i = 0; i < 500; i++) { raw.naive.push(season("naive", 0, r)); raw.s50.push(season("split", 0.5, r)); raw.s60.push(season("split", 0.6, r)); raw.s70.push(season("split", 0.7, r)); raw.ps.push(season("ps", 0, r)); }
   G.seasons = summarizeSeasons(raw);
   const over = G.seasons.naive.fcr > DELTA;
-  $("seasonsText").innerHTML = `Reuse broke ${pct(G.seasons.naive.fcr)} of certificates${over ? " (over budget)" : ""}; PS-DME broke ${pct(G.seasons.ps.fcr)}. The reliability dial still works here.`;
+  $("seasonsText").innerHTML = `New riders and new tryouts each time, hiring the 5 fastest-looking. Reuse broke ${pct(G.seasons.naive.fcr)} of its promises${over ? ", more than the 10% allowed" : ""}; PS-DME broke ${pct(G.seasons.ps.fcr)}. The dial under the screen still works here.`;
   $("seasonsBack").onclick = () => { sfx.click(); S.mode = "cert"; show("resultPanel"); };
   $("seasonsAgain").onclick = () => { sfx.click(); newRound(); };
   (over ? sfx.crack : sfx.good)();
@@ -534,7 +534,7 @@ async function runSeasons() {
 /* ===================== Wiring ===================== */
 $("newGame").onclick = () => { sfx.click(); startGame(); };
 $("restartBtn").onclick = () => { sfx.click(); skipRequested = true; setTimeout(() => { G.score = 0; updateScore(); S.mode = "idle"; S.hud = "INSERT COIN"; S.reveal = undefined; G.picked = []; show("titleScreen"); }, 50); };
-$("howBtn").onclick = async () => { sfx.click(); $("titleScreen").hidden = true; await dialog("<b>How to play</b><br><br>1. Choose a protocol: naive reuse, data splitting, or the paper's PS-DME.<br>2. Watch the tryouts and pick five couriers (or let the game pick the five fastest-looking).<br>3. See the winner's curse, then read the certificates. The dial under the screen changes the reliability level you want to guarantee.<br>4. Reveal the truth: 10,000 real deliveries per courier. A certificate is broken if the true curve leaves the band anywhere.<br>5. Run 500 seasons to see how often each protocol breaks its certificates.<br><br>Click the picture to skip an animation."); show("titleScreen"); };
+$("howBtn").onclick = async () => { sfx.click(); $("titleScreen").hidden = true; await dialog("<b>How to play</b><br><br>You run a delivery company and must hire 5 of 30 riders, then promise customers how fast they are.<br><br>1. Choose how you will make the promise: reuse the tryout data, split it, or use the paper's method (PS-DME).<br>2. Watch the tryout and hire five riders by clicking them, or let the game hire the five fastest-looking.<br>3. See how much luck was in your choice, then read the promises. The dial under the screen sets how many deliveries the promise must cover.<br>4. Reveal the truth: 10,000 real deliveries per rider. A promise is broken if the true curve leaves the shaded zone anywhere.<br>5. Replay the whole game 500 times to see how often each method breaks its promises.<br><br>Click the picture to skip an animation."); show("titleScreen"); };
 $("soundBtn").onclick = () => { G.sound = !G.sound; $("soundBtn").textContent = `Sound: ${G.sound ? "on" : "off"}`; $("soundBtn").setAttribute("aria-pressed", String(G.sound)); try { localStorage.setItem("pap-sound", G.sound ? "on" : "off"); } catch (e) { } sfx.click(); };
 $("soundBtn").textContent = `Sound: ${G.sound ? "on" : "off"}`; $("soundBtn").setAttribute("aria-pressed", String(G.sound));
 
