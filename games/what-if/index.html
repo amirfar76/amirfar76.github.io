@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What If? Arcade</title>
+<meta name="description" content="A retro arcade demo of the ICML 2026 paper “Should I Have Expressed a Different Intent? Counterfactual Generation for LLM-Based Autonomous Control” by Amirmohammad Farzaneh, Salvatore D'Oro and Osvaldo Simeone.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: page header, a CRT in a circuit-board bezel, a control strip, then a plain-language explainer. */
+:root {
+  --page: #e6e9ee; --ink: #16202a; --quiet: #51606b; --line: #c2cbd3;
+  --amber: #e07b00; --teal: #137f7e; --bezel: #22303a; --pin: #c9a646;
+  --btn: #f7f9fa; --btn-ink: #16202a;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #141c23; --ink: #e3e9ee; --quiet: #9aa9b4; --line: #34434d;
+    --amber: #ffa23a; --teal: #45c2bd; --bezel: #0c1216; --pin: #b8963a;
+    --btn: #22303a; --btn-ink: #e3e9ee;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #141c23; --ink: #e3e9ee; --quiet: #9aa9b4; --line: #34434d;
+  --amber: #ffa23a; --teal: #45c2bd; --bezel: #0c1216; --pin: #b8963a;
+  --btn: #22303a; --btn-ink: #e3e9ee;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 16px/1.5 "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1000px; margin: 0 auto; padding-block: 20px 36px; padding-inline: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; margin-bottom: 14px; }
+h1 {
+  margin: 0; font: 600 clamp(30px, 6vw, 46px)/1 "Pixelify Sans", ui-monospace, monospace;
+  letter-spacing: 0.02em; color: var(--ink); text-shadow: 3px 3px 0 var(--amber);
+}
+header p { margin: 0; color: var(--quiet); max-width: 62ch; }
+header p em { font-style: normal; color: var(--ink); }
+header p .back { color: var(--teal); white-space: nowrap; }
+
+.bezel {
+  background: var(--bezel); border-radius: 14px 14px 6px 6px; padding: 10px 10px 22px; position: relative;
+  box-shadow: 0 0 0 1px rgba(255, 170, 60, 0.35), 0 0 28px rgba(255, 150, 40, 0.2), 0 0 60px rgba(80, 235, 255, 0.1);
+}
+.bezel::after {
+  content: ""; position: absolute; left: 12%; right: 12%; bottom: 7px; height: 8px;
+  background: repeating-linear-gradient(90deg, var(--pin) 0 6px, transparent 6px 11px); opacity: 0.9;
+}
+.stage { position: relative; aspect-ratio: 16 / 10; width: 100%; max-width: 100%; overflow: hidden; border-radius: 4px; background: #000; container-type: inline-size; }
+#screen { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+#scan {
+  position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; opacity: 0.45;
+  background: linear-gradient(to bottom, transparent 50%, rgba(20, 0, 40, 0.35) 50%); background-size: 100% calc(100% / 200);
+}
+#layer { position: absolute; inset: 0; -webkit-user-select: none; user-select: none; }
+
+/* Overlays inside the screen */
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6, 10, 14, 0.55); padding: 3%; }
+.overlay.low { align-items: flex-start; background: transparent; pointer-events: none; padding-top: 11.5%; }
+.overlay.low > * { pointer-events: auto; }
+.overlay[hidden] { display: none; }
+.box {
+  background: #f7f3e6; color: #1b1b1b; border: 3px solid #1b1b1b; box-shadow: 5px 5px 0 #1b1b1b;
+  max-width: 86%; max-height: 94%; overflow: auto; padding: 2.6cqw 3.2cqw; text-align: left;
+  font: 400 clamp(12px, 2.6cqw, 18px)/1.35 "Pixelify Sans", ui-monospace, monospace;
+}
+.box.wide { max-width: 94%; width: 94%; }
+.box.ccg { max-height: 53%; display: flex; flex-direction: column; padding-block: 1.4cqw; }
+.box.ccg h3 { margin-bottom: 0.3em; }
+#ccgPlay { display: flex; flex-direction: column; min-height: 0; }
+.box p { margin: 0 0 0.8em; }
+.box h3 { margin: 0 0 0.5em; font: 600 clamp(15px, 3.6cqw, 26px)/1.1 "Pixelify Sans", ui-monospace, monospace; }
+.box h3 small { color: #6a5a30; font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }
+.box .hint { color: #5d5a4e; font-size: 0.9em; }
+.box button {
+  font: 600 clamp(12px, 2.6cqw, 18px)/1 "Pixelify Sans", ui-monospace, monospace;
+  background: #1b1b1b; color: #f7f3e6; border: 0; padding: 0.55em 1.1em; cursor: pointer;
+}
+.box button:disabled { opacity: 0.4; cursor: default; }
+.box button.ghost { background: transparent; color: #1b1b1b; border: 2px solid #1b1b1b; }
+.row { display: flex; flex-wrap: wrap; gap: 1.2cqw; align-items: center; margin-top: 1cqw; }
+.row.end { justify-content: flex-end; }
+.title { flex-direction: column; text-align: center; gap: 2cqw; background: rgba(6, 10, 14, 0.62); }
+.title h2 { margin: 0; color: #fff; font: 600 clamp(34px, 12cqw, 100px)/1 "Pixelify Sans", ui-monospace, monospace; text-shadow: 0.06em 0.06em 0 var(--amber); }
+.title p { margin: 0; color: #e8eef2; max-width: 36em; font-size: clamp(13px, 2.6cqw, 18px); }
+.title .row { gap: 2cqw; margin-top: 1cqw; justify-content: center; }
+.title button {
+  font: 600 clamp(13px, 2.8cqw, 19px)/1 "Pixelify Sans", ui-monospace, monospace;
+  background: #f7f3e6; color: #1b1b1b; border: 0; padding: 0.55em 1.1em; cursor: pointer; box-shadow: 4px 4px 0 var(--amber);
+}
+.title button:disabled { opacity: 0.5; }
+.title a { color: #ffd591; }
+button:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+
+/* Intent builder chips */
+.chips { display: grid; grid-template-columns: max-content 1fr; gap: 0.8cqw 1.6cqw; align-items: center; margin: 0.6em 0 1em; }
+.chips .lab { color: #5d5a4e; font-size: 0.9em; }
+.chips .grp { display: flex; flex-wrap: wrap; gap: 0.6cqw; }
+.chip {
+  font: 600 clamp(11px, 2.3cqw, 16px)/1 "Pixelify Sans", ui-monospace, monospace;
+  background: #fff; color: #1b1b1b; border: 2px solid #1b1b1b; padding: 0.45em 0.8em; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: #1b1b1b; color: #f7f3e6; }
+.chip.was { border-style: dashed; opacity: 0.55; }
+.chip.changed[aria-pressed="true"] { background: var(--amber); color: #1b1b1b; border-color: #1b1b1b; }
+.intent { background: #fff; border: 2px solid #1b1b1b; padding: 0.6em 0.8em; margin: 0.2em 0 0.8em; min-height: 2.6em; }
+.intent b { color: #a24e00; }
+
+/* Method cabinets */
+.cabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4cqw; margin: 0.6em 0; }
+.cab {
+  display: flex; flex-direction: column; gap: 0.5cqw; text-align: left; cursor: pointer;
+  background: #fff; color: #1b1b1b; border: 3px solid #1b1b1b; padding: 1.2cqw 1.4cqw; box-shadow: 4px 4px 0 #1b1b1b;
+  font: 400 clamp(11px, 2.2cqw, 15px)/1.3 "Pixelify Sans", ui-monospace, monospace;
+}
+.cab:hover, .cab:focus-visible { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #1b1b1b; }
+.cab b { font-size: 1.25em; display: block; border-bottom: 3px solid; padding-bottom: 0.2em; margin-bottom: 0.2em; }
+.cab.ig b { border-color: #d6403a; } .cab.sig b { border-color: #8b5cf6; } .cab.cg b { border-color: #15a37f; }
+.cab .tag { font-size: 0.8em; color: #5d5a4e; }
+@media (max-width: 560px) { .cabs { grid-template-columns: 1fr; } .chips { grid-template-columns: 1fr; } }
+
+/* Result comparison */
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6cqw; margin: 0.3em 0 0.6em; }
+.rep { background: #fff; border: 2px solid #1b1b1b; padding: 0.6em 0.8em; min-width: 0; font-size: 0.85em; }
+.rep h4 { margin: 0 0 0.4em; font: 600 1em/1.1 "Pixelify Sans", ui-monospace, monospace; display: flex; align-items: center; gap: 0.5em; }
+.rep h4 .sw { width: 0.8em; height: 0.8em; display: inline-block; border: 2px solid #1b1b1b; }
+.score { font: 600 clamp(16px, 4cqw, 32px)/1 "Pixelify Sans", ui-monospace, monospace; color: #a24e00; }
+.bar { height: 0.7em; background: #ddd; border: 2px solid #1b1b1b; margin: 0.3em 0 0.6em; }
+.bar i { display: block; height: 100%; background: #15a37f; }
+@media (max-width: 560px) { .cmp { grid-template-columns: 1fr; } }
+
+/* Conformal stage */
+.cands { display: flex; flex-direction: column; gap: 0.5cqw; margin: 0.4em 0; flex: 1 1 auto; min-height: 4.5em; overflow: auto; }
+.cand { display: grid; grid-template-columns: 2.2em 1fr auto; gap: 0.8cqw; align-items: center; background: #fff; border: 2px solid #1b1b1b; padding: 0.3em 0.6em; font-size: 0.85em; }
+.cand.skip { opacity: 0.55; border-style: dashed; }
+.cand .k { font-weight: 600; }
+.cand .st { font-weight: 600; white-space: nowrap; }
+.cand.ok .st { color: #15a37f; } .cand.skip .st { color: #8b5cf6; }
+.cand .q { color: #5d5a4e; }
+.tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1cqw; margin: 0.4em 0; }
+.tile { background: #fff; border: 2px solid #1b1b1b; padding: 0.15em 0.5em; display: flex; align-items: baseline; gap: 0.5em; min-width: 0; }
+.tile .v { font: 600 1.25em/1 "Pixelify Sans", ui-monospace, monospace; }
+.tile .l { color: #5d5a4e; font-size: 0.75em; line-height: 1.1; }
+.verdict { padding: 0.35em 0.8em; border: 2px solid #1b1b1b; margin: 0.3em 0; font-weight: 600; font-size: 0.9em; }
+.verdict.ok { background: #d9f5ea; } .verdict.miss { background: #fde0de; }
+@media (max-width: 560px) { .tally { grid-template-columns: 1fr 1fr; } }
+
+/* Controls under the picture */
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; }
+.meta { margin-left: auto; display: flex; align-items: center; gap: 14px; color: var(--quiet); font-size: 15px; flex-wrap: wrap; }
+.meta strong { color: var(--ink); }
+.plain {
+  font: 700 15px/1 "Atkinson Hyperlegible", system-ui, sans-serif; background: var(--btn); color: var(--btn-ink);
+  border: 2px solid var(--line); border-radius: 6px; padding: 10px 14px; cursor: pointer; text-decoration: none; display: inline-block;
+}
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; color: var(--quiet); }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--line); }
+.legend .t::before { background: #fff; } .legend .ig::before { background: #ff6a5e; } .legend .sig::before { background: #b394ff; } .legend .cg::before { background: #3ddc97; }
+
+.explain { margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 28px; }
+.explain h2 { grid-column: 1 / -1; margin: 0; font: 600 clamp(22px, 4vw, 30px)/1.1 "Pixelify Sans", ui-monospace, monospace; }
+.explain h3 { margin: 0 0 6px; font-size: 17px; }
+.explain p { margin: 0; color: var(--quiet); }
+.explain p b { color: var(--ink); }
+.cite { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--quiet); font-size: 14px; max-width: 76ch; }
+.cite a { color: var(--teal); }
+@media (prefers-reduced-motion: reduce) { .cab:hover { transform: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>What If?</h1>
+    <p>An arcade demo of the paper <em>Should I Have Expressed a Different Intent?</em> You run a 5G cell through an AI agent, then find out what a different instruction would have done. <a class="back" href="../../games.html">All games →</a></p>
+  </header>
+
+  <div class="bezel">
+    <div class="stage">
+      <canvas id="screen" width="640" height="400" aria-label="Game picture"></canvas>
+      <div id="scan" aria-hidden="true"></div>
+      <div id="layer">
+
+        <div id="dlg" class="overlay" hidden>
+          <div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgText">
+            <p id="dlgText"></p>
+            <div class="row end"><button id="dlgOk">OK</button></div>
+          </div>
+        </div>
+
+        <div id="intentPanel" class="overlay" hidden>
+          <div class="box wide" role="dialog" aria-modal="true" aria-labelledby="intentTitle">
+            <h3 id="intentTitle">Tell the agent what you want</h3>
+            <p id="intentHint" class="hint">Pick the pieces of your instruction. The agent reads the text, not the buttons.</p>
+            <div class="chips" id="chips"></div>
+            <div class="intent" id="intentPreview"></div>
+            <div class="row end"><button id="intentGo">Send intent</button></div>
+          </div>
+        </div>
+
+        <div id="methodPanel" class="overlay" hidden>
+          <div class="box wide" role="dialog" aria-modal="true" aria-labelledby="methodTitle">
+            <h3 id="methodTitle">How should we answer your what-if?</h3>
+            <p class="hint">Three machines claim they can tell you what would have happened. Pick one. The truth is revealed afterwards.</p>
+            <div class="cabs">
+              <button class="cab ig" data-m="IG"><b>RE-RUN</b><span>Send the new intent to the real network and see what happens now.</span><span class="tag">New dice, new weather. The paper calls this interventional generation.</span></button>
+              <button class="cab sig" data-m="SIG"><b>SIMULATE</b><span>Send the new intent to a digital twin of the network with a fresh random seed.</span><span class="tag">New dice, guessed weather. Simulated interventional generation.</span></button>
+              <button class="cab cg" data-m="CG"><b>REWIND</b><span>Infer the hidden conditions of the run you saw, keep the agent's dice, replay with the new intent.</span><span class="tag">Same dice, inferred weather. The paper's counterfactual generation.</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div id="resultPanel" class="overlay" hidden>
+          <div class="box wide" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+            <h3 id="resultTitle">Result</h3>
+            <div class="cmp">
+              <div class="rep" id="repMethod"></div>
+              <div class="rep" id="repTruth"></div>
+            </div>
+            <div id="resultScore"></div>
+            <p id="resultNote" class="hint"></p>
+            <div class="row end"><button class="ghost" id="cmpAll">Compare all three</button><button id="nextRound">Next</button></div>
+          </div>
+        </div>
+
+        <div id="ccgPanel" class="overlay low" hidden>
+          <div class="box wide ccg" role="dialog" aria-modal="true" aria-labelledby="ccgTitle">
+            <h3 id="ccgTitle">Bonus stage: how many rewinds? <small id="ccgSub"></small></h3>
+            <div id="ccgSetup">
+              <p class="hint">REWIND guesses the hidden weather, so one answer can be off. Ask for several, and keep only the ones that pass. How often may the set miss the truth?</p>
+              <div class="row" id="epsRow">
+                <button class="chip" data-eps="0.1" aria-pressed="false">Miss at most 10%</button>
+                <button class="chip" data-eps="0.2" aria-pressed="true">Miss at most 20%</button>
+                <button class="chip" data-eps="0.3" aria-pressed="false">Miss at most 30%</button>
+              </div>
+              <div class="row end"><button id="calBtn">Calibrate on 100 past episodes</button></div>
+              <p id="calOut" class="hint"></p>
+            </div>
+            <div id="ccgPlay" hidden>
+              <p id="ccgEpisode" class="hint"></p>
+              <div class="cands" id="cands"></div>
+              <div id="ccgVerdict"></div>
+              <div class="tally">
+                <div class="tile"><div class="v" id="tCov">–</div><div class="l">truth covered (CCG)</div></div>
+                <div class="tile"><div class="v" id="tSamp">–</div><div class="l">avg. rewinds used</div></div>
+                <div class="tile"><div class="v" id="tBase">–</div><div class="l">fixed budget: 10 rewinds, covered</div></div>
+              </div>
+              <div class="row end"><button id="pullBtn">Pull lever</button><button class="ghost" id="revealBtn" hidden>Reveal truth</button><button class="ghost" id="ccgNext" hidden>Another what-if</button><button id="ccgDone" hidden>Finish</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="endScreen" class="overlay title" hidden>
+          <h2>Game over</h2>
+          <p id="endText"></p>
+          <p>The paper: <a href="https://arxiv.org/abs/2601.20090" target="_blank" rel="noopener">arXiv 2601.20090</a>, ICML 2026.</p>
+          <div class="row"><button id="playAgain">Play again</button></div>
+        </div>
+
+        <div id="titleScreen" class="overlay title">
+          <h2>What If?</h2>
+          <p>You run a 5G cell by telling an AI agent what you want. After each run you will wonder: should I have expressed a different intent? Three machines offer an answer. Only one rewinds the world.</p>
+          <div class="row"><button id="newGame" disabled>Insert coin</button><button id="howBtn">How it works</button></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="legend" aria-label="Trace colours"><span class="t">True what-if</span><span class="ig">Re-run</span><span class="sig">Simulate</span><span class="cg">Rewind</span></div>
+    <div class="meta">
+      <span>Score <strong id="scoreOut">0</strong></span>
+      <button class="plain" id="soundBtn" aria-pressed="true">Sound: on</button>
+      <button class="plain" id="restartBtn">Restart</button>
+      <a class="plain" href="https://arxiv.org/abs/2601.20090" target="_blank" rel="noopener">Read the paper</a>
+    </div>
+  </div>
+
+  <section class="explain">
+    <h2>What the game shows</h2>
+    <div>
+      <h3>The loop</h3>
+      <p>An operator writes an <b>intent</b> in plain words. An LLM agent turns it into an <b>action</b> (here: the scheduler for the cell). The network runs and reports <b>KPIs</b>, and the agent writes a <b>report</b>. Then the operator asks: what if I had phrased it differently?</p>
+    </div>
+    <div>
+      <h3>Why re-running is not an answer</h3>
+      <p>Running the new intent again changes two things at once: the agent's random choices and the conditions in the network. In the game those are the <b>dice</b> and the <b>weather</b>. You cannot tell whether a different outcome came from your words or from luck.</p>
+    </div>
+    <div>
+      <h3>Rewind: counterfactual generation</h3>
+      <p>The paper models operator, agent and network as one structural causal model. The agent's dice are known. The network's hidden conditions are <b>inferred</b> from the run you saw (abduction, using a digital twin). Then the new intent is replayed with the same dice and the inferred conditions.</p>
+    </div>
+    <div>
+      <h3>Conformal counterfactual generation</h3>
+      <p>The twin is only a model, so one rewind can be off. The paper asks for several, keeps candidates that pass a quality and a diversity test, and stops when confident. Thresholds are <b>calibrated</b> on past episodes so the set contains a faithful answer with a guaranteed probability.</p>
+    </div>
+  </section>
+
+  <p class="cite">A. Farzaneh, S. D'Oro, O. Simeone, “Should I Have Expressed a Different Intent? Counterfactual Generation for LLM-Based Autonomous Control,” <em>International Conference on Machine Learning (ICML)</em>, 2026. <a href="https://arxiv.org/abs/2601.20090" target="_blank" rel="noopener">arXiv:2601.20090</a>. The network in this game is a toy; the method and the comparison are the paper's. Game by <a href="https://afarzaneh.com">Amirmohammad Farzaneh</a>.</p>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const cv = $("screen"), ctx = cv.getContext("2d");
+const W = 640, H = 400;
+
+/* ===================== Random numbers ===================== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let seedCounter = (Date.now() % 1000003) | 0;
+const newRng = () => mulberry32(seedCounter = (seedCounter * 1103515245 + 12345) & 0x7fffffff);
+const gumbel = (r) => -Math.log(-Math.log(Math.max(1e-9, r())));
+const randn = (r) => { const u = Math.max(1e-9, r()), v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+const argmin = (a) => a.reduce((b, v, i) => (v < a[b] ? i : b), 0);
+const argmax = (a) => a.reduce((b, v, i) => (v > a[b] ? i : b), 0);
+const median = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+
+/* ===================== The toy world ===================== */
+const GOALS = {
+  thr: { short: "Max throughput", text: "maximize aggregate throughput", pf: 1.6 },
+  fair: { short: "Fairness", text: "share capacity fairly across users", pf: -1.5 },
+  lat: { short: "Low latency", text: "keep latency low and stable", pf: -0.7 }
+};
+const LOADS = { light: { short: "Light traffic", v: 0.6 }, heavy: { short: "Heavy traffic", v: 1.2 } };
+const UES = { 3: { short: "3 users" }, 5: { short: "5 users" }, 8: { short: "8 users" } };
+const STYLES = { plain: { short: "Plain words", pf: 0 }, formal: { short: "Formal request", pf: 0.35 } };
+const TIMES = Array.from({ length: 51 }, (_, i) => i * 0.2);
+const C_CELL = 6.0;
+
+function intentText(I) {
+  const g = GOALS[I.goal].text, l = LOADS[I.load].v.toFixed(1);
+  if (I.style === "formal") return `Context: the cell serves ${I.n} UEs, each with an expected offered load of ${l} Mbps. Goal: configure the gNB to ${g}. Please summarize the resulting KPIs over a 10 second observation window.`;
+  return `${I.n} UEs, ${l} Mbps each. Configure the gNB to ${g}. Summarize the KPIs over 10 s.`;
+}
+function intentHTML(I, ref) {
+  const mark = (k, s) => (ref && ref[k] !== I[k]) ? `<b>${s}</b>` : s;
+  const g = mark("goal", GOALS[I.goal].text), l = mark("load", LOADS[I.load].v.toFixed(1) + " Mbps"), n = mark("n", I.n + " UEs");
+  if (I.style === "formal") return (ref && ref.style !== I.style ? "<b>Context:</b> " : "Context: ") + `the cell serves ${n}, each with an expected offered load of ${l}. Goal: configure the gNB to ${g}. Please summarize the resulting KPIs over a 10 second observation window.`;
+  return `${n}, ${l} each. Configure the gNB to ${g}. Summarize the KPIs over 10 s.`;
+}
+function pfLogit(I) { return GOALS[I.goal].pf + STYLES[I.style].pf + (I.load === "heavy" ? 0.5 : -0.3) + (I.n === 8 ? 0.3 : I.n === 3 ? -0.3 : 0); }
+// The agent: Gumbel-max over {RR, PF}. uA is the agent's dice (exogenous noise).
+function decide(I, uA) {
+  const sRR = 0 + uA[0], sPF = pfLogit(I) + uA[1];
+  return { sched: sPF > sRR ? "PF" : "RR", n: I.n, load: LOADS[I.load].v, sRR, sPF };
+}
+// Hidden conditions of the network: a storm (fading dip) at time ts, depth d, width w; a shadowing offset; a fast-fading seed.
+function worldNoise(r) { return { ts: 1.5 + r() * 6.5, d: 0.18 + r() * 0.3, w: 0.5 + r() * 0.9, shadow: (r() - 0.5) * 0.16, jseed: Math.floor(r() * 1e9) }; }
+const stormAt = (U, t) => U.d * Math.exp(-2 * ((t - U.ts) / U.w) ** 2);
+// Environment. twin=true is the digital twin: no fast fading, slightly wrong efficiencies.
+function runEnv(A, U, twin) {
+  const eff = A.sched === "PF" ? (twin ? 0.89 : 0.92) : (twin ? 0.745 : 0.72);
+  const offered = A.n * A.load;
+  const jr = mulberry32(U.jseed); let j = 0; const thr = [], lat = [];
+  for (const t of TIMES) {
+    const storm = stormAt(U, t);
+    const cap = C_CELL * eff * (1 + U.shadow) * (1 - storm);
+    j = twin ? 0 : 0.6 * j + 0.4 * randn(jr) * 0.05;
+    const agg = Math.max(0.2, Math.min(offered, cap) * (1 + j));
+    const util = offered / cap;
+    const base = A.sched === "PF" ? 13 : 7;
+    thr.push(agg); lat.push(base + 3 * util + storm * 18 + (twin ? 0 : Math.abs(j) * 30));
+  }
+  const spread = A.sched === "PF" ? 0.22 : 0.04;
+  const avg = mean(thr) / A.n;
+  return { thr, lat, perUE: { min: avg * (1 - spread), max: avg * (1 + spread) }, twin: !!twin, U, A, offered };
+}
+function episodeStats(Z) {
+  const total = mean(Z.thr), per = total / Z.A.n;
+  const ls = [...Z.lat].sort((a, b) => a - b), l10 = ls[5], l90 = ls[45];
+  const i = argmin(Z.thr), j = argmax(Z.lat);
+  const dipDepth = 1 - Z.thr[i] / median(Z.thr);
+  const latBump = Z.lat[j] - median(Z.lat);
+  const visible = dipDepth > 0.08 || latBump > 3;
+  const tDip = dipDepth > 0.08 ? TIMES[i] : TIMES[j];
+  return { total, per, l10, l90, tDip, dipDepth, visible, dipTotal: Z.thr[i] };
+}
+const f1 = (x) => x.toFixed(1), f2 = (x) => x.toFixed(2);
+// Report generator. uY picks the phrasing (the report LLM's dice).
+function reportText(Z, uY) {
+  const s = episodeStats(Z), v = uY % 3, sched = Z.A.sched;
+  const spreadWord = sched === "PF" ? "a moderate spread across users" : "a very small spread across users";
+  const dip = s.visible ? [
+    ` A brief dip occurs at t≈${f1(s.tDip)} s, where total throughput drops to about ${f1(s.dipTotal)} Mbps before recovering.`,
+    ` A short dip is observed near t≈${f1(s.tDip)} s (total ≈${f1(s.dipTotal)} Mbps), followed by a smooth return.`,
+    ` Around t≈${f1(s.tDip)} s a mild dip appears before fast recovery.`][v] : [" No notable dips are observed.", " The run is stable throughout.", " Throughput stays flat for the whole window."][v];
+  const body = [
+    `Over 10 s, the system achieves an average throughput of ${f2(s.per)} Mbps per UE (total ≈${f1(s.total)} Mbps), with ${spreadWord}. Average latency remains between ${Math.round(s.l10)}–${Math.round(s.l90)} ms.`,
+    `The system delivers ${f2(s.per)} Mbps per UE on average (total ≈${f1(s.total)} Mbps) with ${spreadWord}. Latency stays within ${Math.round(s.l10)}–${Math.round(s.l90)} ms.`,
+    `Per-UE throughput is close to ${f2(s.per)} Mbps (total ≈${f1(s.total)} Mbps), ${spreadWord}. Latency sits at ${Math.round(s.l10)}–${Math.round(s.l90)} ms.`][v];
+  return `Chosen scheduler: ${sched}. ${body}${dip}`;
+}
+// Abduction: infer the hidden conditions from the factual KPIs using the twin's model. Returns the posterior mode.
+function abduceMode(Zf) {
+  const A = Zf.A, thr = Zf.thr, lat = Zf.lat;
+  const eff = A.sched === "PF" ? 0.89 : 0.745, offered = A.n * A.load, capNom = C_CELL * eff;
+  const medT = median(thr), medL = median(lat);
+  const limited = medT < offered * 0.97;
+  const shadow = limited ? medT / capNom - 1 : null;              // not identifiable when traffic is light
+  const score = TIMES.map((_, i) => (medT - thr[i]) / medT + (lat[i] - medL) / 30);
+  const i = argmax(score);
+  const dThr = 1 - thr[i] / medT, dLat = (lat[i] - medL) / 18;
+  const d = clamp(limited ? Math.max(dThr, dLat * 0.9) : dLat, 0.03, 0.6);
+  let cnt = 0; for (let k = 0; k < TIMES.length; k++) if (score[k] > score[i] * 0.5) cnt++;
+  const w = clamp(cnt * 0.2 / 1.18, 0.4, 1.6);
+  return { ts: TIMES[i], d, w, shadow, limited };
+}
+// One posterior sample around the mode (what a neural posterior estimator would return), with a quality score.
+// With probability GHOST the estimator latches onto a spurious fade (a fast-fading wobble), as an imperfect posterior would.
+const GHOST = 0.3;
+function sampleU(mode, r) {
+  const ghost = r() < GHOST;
+  const ts = ghost ? 1 + r() * 8 : clamp(mode.ts + randn(r) * 0.18, 0.2, 9.8);
+  const d = clamp(mode.d * (ghost ? 0.6 + 0.8 * r() : 1) + randn(r) * 0.04, 0.03, 0.6), w = clamp(mode.w + randn(r) * 0.12, 0.3, 1.8);
+  const shadow = mode.shadow === null ? (r() - 0.5) * 0.16 : clamp(mode.shadow + randn(r) * 0.012, -0.1, 0.1);
+  // Quality: a noisy score (the paper uses the report LLM's normalized log-likelihood). Wrong samples tend to score lower, not always.
+  const q = clamp((ghost ? 0.42 : 0.74) + randn(r) * 0.14, 0.05, 1);
+  return { ts, d, w, shadow, jseed: Math.floor(r() * 1e9), q, est: true, ghost };
+}
+// How faithful is report/KPIs Z1 to the truth Z2? 0..100.
+function matchScore(Z1, Z2) {
+  const n = Z2.A.n;
+  const mT = mean(Z1.thr.map((v, i) => Math.abs(v - Z2.thr[i]))) / n;
+  const mL = mean(Z1.lat.map((v, i) => Math.abs(v - Z2.lat[i])));
+  const s1 = episodeStats(Z1), s2 = episodeStats(Z2);
+  const dipPen = (s1.visible || s2.visible) ? 30 * Math.min(1, Math.abs(s1.tDip - s2.tDip) / 1.5) : 0;
+  const schedPen = Z1.A.sched === Z2.A.sched ? 0 : 20;
+  return clamp(Math.round(100 - 170 * mT - 2 * mL - dipPen - schedPen), 0, 100);
+}
+const traceSim = (Z1, Z2) => 1 - Math.min(1, mean(Z1.thr.map((v, i) => Math.abs(v - Z2.thr[i]))) / 0.6);
+
+/* ===================== Game state ===================== */
+const METHODS = {
+  IG: { name: "RE-RUN", color: "#ff6a5e", long: "interventional generation" },
+  SIG: { name: "SIMULATE", color: "#b394ff", long: "simulated interventional generation" },
+  CG: { name: "REWIND", color: "#3ddc97", long: "counterfactual generation" }
+};
+const G = { score: 0, round: 0, rounds: 3, fact: null, cf: null, results: {}, scene: {}, sound: true };
+try { G.sound = localStorage.getItem("whatif-sound") !== "off"; } catch (e) { }
+
+function makeFactual(I) {
+  const r = newRng();
+  const uA = [gumbel(r), gumbel(r)], uY = Math.floor(r() * 3), U = worldNoise(r);
+  const A = decide(I, uA), Z = runEnv(A, U, false);
+  return { I, uA, uY, U, A, Z, Y: reportText(Z, uY) };
+}
+// The true counterfactual: same dice, same hidden conditions, new intent. Only the game can see it.
+function trueCF(F, I2) { const A = decide(I2, F.uA), Z = runEnv(A, F.U, false); return { I: I2, A, Z, Y: reportText(Z, F.uY), U: F.U }; }
+function runMethod(m, F, I2) {
+  const r = newRng();
+  if (m === "IG") { const uA = [gumbel(r), gumbel(r)], U = worldNoise(r), A = decide(I2, uA), Z = runEnv(A, U, false); return { A, Z, Y: reportText(Z, Math.floor(r() * 3)), U, dice: "new", twin: false }; }
+  if (m === "SIG") { const uA = [gumbel(r), gumbel(r)], U = worldNoise(r), A = decide(I2, uA); U.shadow *= 2; const Z = runEnv(A, U, true); return { A, Z, Y: reportText(Z, Math.floor(r() * 3)), U, dice: "new", twin: true }; }
+  const mode = abduceMode(F.Z), U = sampleU(mode, r), A = decide(I2, F.uA), Z = runEnv(A, U, true);
+  return { A, Z, Y: reportText(Z, F.uY), U, dice: "same", twin: true, mode };
+}
+
+/* ===================== Sound ===================== */
+let ac = null;
+function beep(freq, dur, type, vol) {
+  if (!G.sound) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.06, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.0005, ac.currentTime + dur);
+    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + dur);
+  } catch (e) { }
+}
+const sfx = {
+  click: () => beep(660, 0.06), send: () => { beep(520, 0.08); setTimeout(() => beep(780, 0.1), 80); },
+  dice: () => { for (let i = 0; i < 5; i++) setTimeout(() => beep(300 + Math.random() * 500, 0.04, "triangle"), i * 60); },
+  storm: () => beep(110, 0.4, "sawtooth", 0.04), good: () => { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.12), i * 90)); },
+  bad: () => { [400, 300, 220].forEach((f, i) => setTimeout(() => beep(f, 0.16, "sawtooth", 0.04), i * 120)); },
+  tick: () => beep(880, 0.03, "square", 0.03)
+};
+
+/* ===================== Pixel art ===================== */
+const PAL = { k: "#101418", w: "#f4f1e8", r: "#e5484d", o: "#ffa23a", y: "#ffd84a", g: "#3ddc97", b: "#4cc9f0", p: "#b394ff", s: "#8899a6", d: "#3b4a57", t: "#d8a070", n: "#1f6f8b" };
+const SPR = {
+  robot: ["....kkkk....", "...kbbbbk...", "..kbbwbbwk..", "..kbbbbbbk..", "..kbkkkkbk..", "...kkkkkk...", "..kssssssk..", ".ksoossooosk", "kssssssssssk", "k.kssssssk.k", "...ksssk....", "...kk.kk....", "..kk...kk...", "..kk...kk..."],
+  person: ["...kkkk...", "..kttttk..", "..ktwtwtk.", "..kttttk..", "...ktt....", "..kkppkk..", ".kppppppk.", ".kppppppk.", "..kppppk..", "..kkkkkk..", "..kd.kdk..", "..kd..dk..", "..kd..dk..", ".kkk..kkk."],
+  tower: ["...r....", "...k....", "..kkk...", "..ksk...", "..ksk...", ".kkskk..", ".k.s.k..", ".k.s.k..", ".kksskk.", ".k.ss.k.", "k..ss..k", "k..ss..k", "k.kkkk.k", "k.k..k.k", "kkk..kkk"],
+  phone: ["kkkk", "kbbk", "kbbk", "kbbk", "kkkk", ".kk."],
+  cloud: [".....sss......", "...sssssss....", "..sssssssssss.", ".sssssssssssss", "ssssssssssssss", ".ssssssssssss.", "..y..y..y.y..."],
+  dice: ["kkkkkk", "kwwwwk", "kwwwwk", "kwwwwk", "kwwwwk", "kkkkkk"],
+  lens: ["..kkkk..", ".kbbbbk.", "kbwbbbbk", "kbbbbbbk", "kbbbbbbk", ".kbbbbk.", "..kkkkk.", ".....kkk"],
+  mail: ["kkkkkkkkkk", "kwwwwwwwwk", "kwkwwwwkwk", "kwwkwwkwwk", "kwwwkkwwwk", "kwwwwwwwwk", "kkkkkkkkkk"],
+  chip: ["k.k.k.k.k.", "kkkkkkkkkk", "kggggggggk", "kgkkkkkkgk", "kgkggggkgk", "kgkkkkkkgk", "kggggggggk", "kkkkkkkkkk", "k.k.k.k.k."],
+  wifi: ["...bbbb...", "..b....b..", ".b..bb..b.", "b..b..b..b", "....bb....", "....bb...."]
+};
+function sprite(name, x, y, sc, tint) {
+  const rows = SPR[name]; sc = sc || 4;
+  for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) {
+    const c = rows[j][i]; if (c === ".") continue;
+    ctx.fillStyle = tint && c !== "k" ? tint : PAL[c]; ctx.fillRect(x + i * sc, y + j * sc, sc, sc);
+  }
+}
+function px(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function text(s, x, y, size, color, align, weight) {
+  ctx.font = `${weight || 400} ${size}px "Pixelify Sans", ui-monospace, monospace`; ctx.fillStyle = color || PAL.w; ctx.textAlign = align || "left"; ctx.textBaseline = "top"; ctx.fillText(s, x, y);
+}
+function wrapText(s, x, y, maxW, size, color, lh) {
+  ctx.font = `400 ${size}px "Pixelify Sans", ui-monospace, monospace`;
+  const words = s.split(" "); let line = "", yy = y;
+  for (const w of words) { const t = line ? line + " " + w : w; if (ctx.measureText(t).width > maxW && line) { text(line, x, yy, size, color); line = w; yy += lh || size * 1.25; } else line = t; }
+  if (line) text(line, x, yy, size, color); return yy + (lh || size * 1.25);
+}
+function bubble(s, cx, y, maxW) {
+  ctx.font = `600 11px "Pixelify Sans", ui-monospace, monospace`;
+  const words = s.split(" "), lines = []; let line = "";
+  for (const w of words) { const t = line ? line + " " + w : w; if (ctx.measureText(t).width > maxW - 16 && line) { lines.push(line); line = w; } else line = t; }
+  if (line) lines.push(line);
+  const bw = Math.min(maxW, Math.max(...lines.map(l => ctx.measureText(l).width)) + 16), bh = lines.length * 13 + 10;
+  const x = clamp(cx - bw / 2, 4, W - bw - 4);
+  px(x, y, bw, bh, PAL.w); px(x, y, bw, 2, PAL.k); px(x, y + bh - 2, bw, 2, PAL.k); px(x, y, 2, bh, PAL.k); px(x + bw - 2, y, 2, bh, PAL.k);
+  px(cx - 4, y + bh, 8, 4, PAL.w); px(cx - 2, y + bh + 4, 4, 3, PAL.w);
+  lines.forEach((l, i) => text(l, x + 8, y + 6 + i * 13, 11, PAL.k, "left", 600));
+}
+
+/* ===================== Scene drawing ===================== */
+// Scene geometry
+const OP = { x: 48, y: 150 }, RB = { x: 290, y: 140 }, TW = { x: 520, y: 118 }, GROUND = 232;
+const PLOT = { x: 44, y: 262, w: 560, hT: 66, hL: 44, gap: 10 };
+const S = G.scene; // scene state: { mode, label, prog, storm, twin, speech, ..., traces: [{Z,color,prog}], hud }
+
+function drawFrame() {
+  // background
+  px(0, 0, W, H, "#0a1020");
+  const grd = ctx.createLinearGradient(0, 40, 0, GROUND); grd.addColorStop(0, "#0d1730"); grd.addColorStop(1, "#1a2a44");
+  ctx.fillStyle = grd; ctx.fillRect(0, 40, W, GROUND - 40);
+  for (let i = 0; i < 30; i++) { const sx = (i * 97 + 13) % W, sy = 50 + (i * 53) % 150; px(sx, sy, 2, 2, (i % 3) ? "#2b3f66" : "#6d86b5"); }
+  px(0, GROUND, W, 6, "#2d3b2a"); px(0, GROUND + 6, W, 18, "#1c2619");
+  // HUD
+  px(0, 0, W, 40, "#070b14"); px(0, 38, W, 2, PAL.o);
+  text(S.hud || "", 16, 10, 16, PAL.o, "left", 600);
+  text(`SCORE ${String(G.score).padStart(4, "0")}`, W - 16, 10, 16, PAL.y, "right", 600);
+  if (S.round) text(S.round, W - 120, 12, 13, PAL.s, "right");
+
+  // operator desk
+  px(OP.x - 20, OP.y + 56, 110, 26, "#5a3d2b"); px(OP.x - 20, OP.y + 82, 8, 22, "#3e2a1d"); px(OP.x + 82, OP.y + 82, 8, 22, "#3e2a1d");
+  px(OP.x + 44, OP.y + 22, 44, 34, PAL.k); px(OP.x + 48, OP.y + 26, 36, 24, S.twin ? "#0b3a46" : "#0b2f1f");
+  for (let i = 0; i < 4; i++) px(OP.x + 52, OP.y + 30 + i * 5, 10 + (i * 7) % 18, 2, PAL.g);
+  sprite("person", OP.x, OP.y, 4);
+  text("OPERATOR (you)", OP.x + 26, GROUND + 8, 11, PAL.s, "center");
+
+  // agent
+  sprite("robot", RB.x, RB.y, 4);
+  text("LLM AGENT", RB.x + 24, GROUND + 8, 11, PAL.s, "center");
+  if (S.dice) {
+    for (let k = 0; k < 2; k++) {
+      const dx = RB.x - 8 + k * 36, dy = RB.y - 36 + (S.diceBounce ? Math.round(Math.sin(performance.now() / 60 + k) * 4) : 0);
+      sprite("dice", dx, dy, 4, S.dice === "same" ? "#d9f5ea" : "#fde0de");
+      const v = S.diceVals ? S.diceVals[k] : "?"; text(String(v), dx + 12, dy + 5, 12, PAL.k, "center", 600);
+    }
+    text(S.dice === "same" ? "same dice" : S.dice === "new" ? "new dice" : "rolling…", RB.x + 24, RB.y - 50, 11, S.dice === "same" ? PAL.g : S.dice === "new" ? PAL.r : PAL.y, "center", 600);
+  }
+
+  // network
+  const twinTint = S.twin ? "#45c2bd" : null;
+  if (S.twin) { ctx.setLineDash([4, 4]); ctx.strokeStyle = "#45c2bd"; ctx.lineWidth = 2; ctx.strokeRect(TW.x - 60, TW.y - 50, 168, GROUND - TW.y + 50); ctx.setLineDash([]); text("DIGITAL TWIN", TW.x + 24, TW.y - 46, 11, "#45c2bd", "center", 600); }
+  sprite("tower", TW.x, TW.y, 4, twinTint);
+  const n = S.nUE || 5;
+  for (let i = 0; i < n; i++) { const ang = Math.PI * (0.15 + 0.7 * i / Math.max(1, n - 1)); const ux = TW.x + 16 + Math.cos(ang) * 74 - 8, uy = GROUND - 26 - Math.sin(ang) * 28; sprite("phone", ux, uy, 3, twinTint); }
+  text(S.twin ? "SIMULATED CELL" : "REAL 5G CELL", TW.x + 16, GROUND + 8, 11, S.twin ? "#45c2bd" : PAL.s, "center");
+  // radio waves when running
+  if (S.mode === "run" && Math.floor(performance.now() / 160) % 2) sprite("wifi", TW.x - 4, TW.y - 28, 4, twinTint);
+
+  // storm cloud
+  if (S.storm) {
+    const U = S.storm, t = S.simT || 0, vis = stormAt(U, t) / U.d;
+    const cx = TW.x - 60 + (t / 10) * 140;
+    if (vis > 0.05 || S.showStorm) {
+      ctx.globalAlpha = S.showStorm ? 0.9 : clamp(vis * 1.5, 0.1, 1);
+      sprite("cloud", cx, 52 + (U.est ? 0 : 0), 4, U.est ? "#7fb5c4" : "#8a93a3");
+      if (vis > 0.5 && Math.floor(performance.now() / 90) % 3 === 0) { px(cx + 24, 80, 4, 10, PAL.y); px(cx + 20, 90, 4, 8, PAL.y); }
+      ctx.globalAlpha = 1;
+      if (U.est) text("inferred", cx + 28, 42, 10, "#7fb5c4", "center");
+    }
+  }
+  // messages in flight
+  if (S.fly) { const f = S.fly, x = f.x0 + (f.x1 - f.x0) * f.p, y = f.y0 + (f.y1 - f.y0) * f.p - Math.sin(f.p * Math.PI) * 30; sprite(f.spr, x, y, 3); if (f.label) text(f.label, x + 14, y - 14, 10, PAL.y, "center"); }
+  if (S.speech) bubble(S.speech.text, S.speech.x, S.speech.y, 230);
+  if (S.lens) sprite("lens", S.lens.x, S.lens.y, 4);
+
+  drawPlots();
+}
+function plotY(v, lo, hi, y0, h) { return y0 + h - clamp((v - lo) / (hi - lo), 0, 1) * h; }
+function drawPlots() {
+  const P = PLOT;
+  px(P.x - 4, P.y - 10, P.w + 8, P.hT + P.hL + P.gap + 26, "#06101a");
+  const yT = P.y, yL = P.y + P.hT + P.gap + 4;
+  // grid
+  ctx.strokeStyle = "#163045"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) { const x = P.x + (i / 10) * P.w; ctx.beginPath(); ctx.moveTo(x, yT); ctx.lineTo(x, yT + P.hT); ctx.moveTo(x, yL); ctx.lineTo(x, yL + P.hL); ctx.stroke(); }
+  text("THROUGHPUT (Mbps, total)", P.x, yT - 9, 10, PAL.s); text("LATENCY (ms)", P.x, yL - 9, 10, PAL.s);
+  text("0", P.x - 2, yT + P.hT - 10, 9, PAL.s, "right"); text("8", P.x - 2, yT, 9, PAL.s, "right");
+  text("0", P.x - 2, yL + P.hL - 10, 9, PAL.s, "right"); text("40", P.x - 2, yL, 9, PAL.s, "right");
+  for (let i = 0; i <= 10; i += 2) text(`${i}s`, P.x + (i / 10) * P.w, yL + P.hL + 3, 9, PAL.s, i === 0 ? "left" : i === 10 ? "right" : "center");
+  if (S.plotTitle) text(S.plotTitle, P.x + P.w, yT - 9, 10, PAL.y, "right", 600);
+  const traces = S.traces || [];
+  for (const tr of traces) {
+    const Z = tr.Z, k = Math.max(1, Math.floor((tr.prog === undefined ? 1 : tr.prog) * (TIMES.length - 1)));
+    ctx.strokeStyle = tr.color; ctx.lineWidth = tr.width || 2; ctx.globalAlpha = tr.alpha || 1;
+    if (tr.dash) ctx.setLineDash(tr.dash);
+    ctx.beginPath(); for (let i = 0; i <= k; i++) { const x = P.x + (TIMES[i] / 10) * P.w, y = plotY(Z.thr[i], 0, 8, yT, P.hT); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
+    ctx.beginPath(); for (let i = 0; i <= k; i++) { const x = P.x + (TIMES[i] / 10) * P.w, y = plotY(Z.lat[i], 0, 40, yL, P.hL); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    if (tr.prog !== undefined && tr.prog < 1) { const x = P.x + (TIMES[k] / 10) * P.w; px(x - 1, yT, 2, P.hT, PAL.w); }
+  }
+  if (S.legend) { let x = P.x + P.w - 2; for (const l of [...S.legend].reverse()) { ctx.font = `600 10px "Pixelify Sans"`; const w = ctx.measureText(l.name).width; x -= w + 20; px(x - 3, yT + 1, w + 18, 12, "rgba(6,16,26,0.8)"); px(x, yT + 3, 8, 8, l.color); text(l.name, x + 11, yT + 2, 10, PAL.w, "left", 600); } }
+}
+function loop() { drawFrame(); requestAnimationFrame(loop); }
+
+/* ===================== Animation helpers ===================== */
+const wait = (ms) => new Promise(res => setTimeout(res, ms));
+let skipRequested = false;
+$("layer").addEventListener("click", (e) => { if (e.target === $("layer")) skipRequested = true; });
+async function animate(ms, fn) { const t0 = performance.now(); let p = 0; while (p < 1) { if (skipRequested) { fn(1); break; } p = Math.min(1, (performance.now() - t0) / ms); fn(p); await new Promise(requestAnimationFrame); } }
+async function pause(ms) { const t0 = performance.now(); while (performance.now() - t0 < ms && !skipRequested) await new Promise(requestAnimationFrame); }
+
+// Plays one episode through the pipeline. ep = { I, A, Z, Y, U, dice, twin, diceVals, mode }
+async function playEpisode(ep, opts) {
+  opts = opts || {}; skipRequested = false;
+  const F = G.fact;
+  S.twin = !!ep.twin; S.nUE = ep.A.n; S.traces = []; S.legend = null; S.storm = null; S.showStorm = false; S.speech = null; S.lens = null; S.dice = null; S.plotTitle = opts.plotTitle || "";
+  S.hud = opts.hud || "RUNNING";
+  // 1. intent flies to the agent
+  sfx.send();
+  await animate(700, p => { S.fly = { spr: "mail", x0: OP.x + 60, y0: OP.y + 10, x1: RB.x + 8, y1: RB.y + 10, p, label: "intent" }; });
+  S.fly = null;
+  // 2. abduction (REWIND only): look at the factual run and infer the weather
+  if (ep.mode) {
+    S.hud = "ABDUCTION: inferring the hidden conditions";
+    S.traces = [{ Z: F.Z, color: "#8899a6", alpha: 0.9 }];
+    S.speech = { text: "Let me look at the run you saw…", x: RB.x + 24, y: RB.y - 64 };
+    for (let i = 0; i < 2; i++) { sfx.tick(); await animate(700, p => { S.lens = { x: PLOT.x + p * (PLOT.w - 40), y: PLOT.y + 10 }; }); }
+    S.lens = { x: PLOT.x + (ep.U.ts / 10) * PLOT.w - 16, y: PLOT.y + 10 };
+    S.storm = ep.U; S.simT = ep.U.ts; S.showStorm = true;
+    S.speech = { text: `A fade hit around t≈${f1(ep.U.ts)} s. I'll keep that.`, x: RB.x + 24, y: RB.y - 64 };
+    sfx.storm(); await pause(1300);
+    S.lens = null; S.showStorm = false; S.traces = [];
+  }
+  // 3. the agent rolls (or reuses) its dice and decides
+  S.hud = ep.mode ? "REPLAY: same dice, new intent" : opts.hudThink || "THE AGENT DECIDES";
+  S.dice = "rolling"; S.diceBounce = true; S.diceVals = null; sfx.dice();
+  await animate(ep.dice === "same" ? 500 : 900, p => { S.diceVals = ep.dice === "same" ? ep.diceVals : [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)]; });
+  S.diceBounce = false; S.dice = ep.dice || "new"; S.diceVals = ep.diceVals;
+  S.speech = { text: `Scheduler: ${ep.A.sched} (${ep.A.sched === "PF" ? "proportional fair" : "round robin"}) for ${ep.A.n} UEs`, x: RB.x + 24, y: RB.y - 64 };
+  await pause(900);
+  // 4. action flies to the network
+  await animate(600, p => { S.fly = { spr: "chip", x0: RB.x + 40, y0: RB.y + 10, x1: TW.x - 10, y1: TW.y + 20, p, label: "action" }; });
+  S.fly = null; S.speech = null;
+  // 5. the network runs; KPIs stream in
+  S.hud = ep.twin ? "THE TWIN RUNS (10 s)" : "THE NETWORK RUNS (10 s)";
+  S.storm = ep.U; S.mode = "run";
+  const tr = { Z: ep.Z, color: opts.color || PAL.g, prog: 0 }; S.traces = [tr];
+  let stormed = false;
+  await animate(opts.fast ? 1800 : 3600, p => { tr.prog = p; S.simT = p * 10; if (!stormed && stormAt(ep.U, S.simT) > ep.U.d * 0.6) { stormed = true; sfx.storm(); } });
+  tr.prog = 1; S.mode = null; S.simT = 10;
+  // 6. KPIs back, report to the operator
+  await animate(500, p => { S.fly = { spr: "wifi", x0: TW.x - 10, y0: TW.y + 20, x1: RB.x + 40, y1: RB.y + 10, p, label: "KPIs" }; });
+  await animate(500, p => { S.fly = { spr: "mail", x0: RB.x + 8, y0: RB.y + 10, x1: OP.x + 60, y1: OP.y + 10, p, label: "report" }; });
+  S.fly = null; S.storm = null; S.hud = opts.hudDone || "REPORT";
+}
+
+/* ===================== UI plumbing ===================== */
+const panels = ["dlg", "intentPanel", "methodPanel", "resultPanel", "ccgPanel", "endScreen", "titleScreen"];
+function show(id) { for (const p of panels) $(p).hidden = p !== id; }
+function hideAll() { for (const p of panels) $(p).hidden = true; }
+function dialog(txt) { return new Promise(res => { $("dlgText").innerHTML = txt; show("dlg"); $("dlgOk").focus(); $("dlgOk").onclick = () => { sfx.click(); $("dlg").hidden = true; res(); }; }); }
+function updateScore() { $("scoreOut").textContent = G.score; }
+
+// Intent builder
+function buildChips(I, ref) {
+  const groups = [["goal", "Goal", GOALS], ["n", "Users", UES], ["load", "Traffic", LOADS], ["style", "Wording", STYLES]];
+  const host = $("chips"); host.innerHTML = "";
+  for (const [key, label, opts] of groups) {
+    const lab = document.createElement("div"); lab.className = "lab"; lab.textContent = label; host.appendChild(lab);
+    const grp = document.createElement("div"); grp.className = "grp";
+    for (const k of Object.keys(opts)) {
+      const b = document.createElement("button"); b.className = "chip"; b.type = "button"; b.textContent = opts[k].short;
+      const val = key === "n" ? Number(k) : k;
+      b.setAttribute("aria-pressed", String(I[key] === val));
+      if (ref && ref[key] === val && I[key] !== val) b.classList.add("was");
+      if (ref && ref[key] !== val && I[key] === val) b.classList.add("changed");
+      b.onclick = () => { sfx.click(); I[key] = val; buildChips(I, ref); };
+      grp.appendChild(b);
+    }
+    host.appendChild(grp);
+  }
+  $("intentPreview").innerHTML = intentHTML(I, ref);
+  if (ref) { const same = Object.keys(I).every(k => I[k] === ref[k]); $("intentGo").disabled = same; $("intentGo").textContent = same ? "Change something first" : "Ask: what if?"; }
+  else { $("intentGo").disabled = false; $("intentGo").textContent = "Send intent"; }
+}
+function askIntent(I, ref, title, hint) {
+  return new Promise(res => {
+    $("intentTitle").textContent = title; $("intentHint").textContent = hint;
+    buildChips(I, ref); show("intentPanel");
+    $("intentGo").onclick = () => { sfx.send(); $("intentPanel").hidden = true; res({ ...I }); };
+  });
+}
+function askMethod() { return new Promise(res => { show("methodPanel"); for (const b of document.querySelectorAll(".cab")) b.onclick = () => { sfx.click(); $("methodPanel").hidden = true; res(b.dataset.m); }; }); }
+
+function repHTML(title, color, ep, I) {
+  return `<h4><span class="sw" style="background:${color}"></span>${title}</h4><p class="hint" style="margin-bottom:.4em">${intentHTML(I, G.fact.I)}</p><p>${ep.Y}</p>`;
+}
+
+/* ===================== Game flow ===================== */
+const randomIntent = (r) => ({ goal: ["thr", "fair", "lat"][Math.floor(r() * 3)], n: [3, 5, 8][Math.floor(r() * 3)], load: r() < 0.5 ? "light" : "heavy", style: r() < 0.5 ? "plain" : "formal" });
+function randomEdit(I, r) { const I2 = { ...I }; const keys = ["goal", "n", "load", "style"]; let tries = 0; while (tries++ < 20) { const k = keys[Math.floor(r() * 4)]; const opts = k === "goal" ? ["thr", "fair", "lat"] : k === "n" ? [3, 5, 8] : k === "load" ? ["light", "heavy"] : ["plain", "formal"]; const v = opts[Math.floor(r() * opts.length)]; if (v !== I[k]) { I2[k] = v; break; } } return I2; }
+
+async function startGame() {
+  G.score = 0; G.round = 0; G.results = {}; updateScore();
+  hideAll();
+  S.hud = "DAY ONE AT THE CELL"; S.round = ""; S.traces = []; S.nUE = 5; S.twin = false;
+  await dialog("You are the operator of a 5G cell. You do not touch the knobs yourself. You tell an <b>LLM agent</b> what you want, in plain words, and it configures the base station.<br><br>After each run you get a report. And then the question comes: <i>should I have expressed a different intent?</i>");
+  await dialog("Two kinds of luck are hidden in every run.<br><br>The agent's <b>dice</b>: it samples its decision, so the same words can lead to different actions.<br>The network's <b>weather</b>: fading and shadowing that you cannot see or repeat.<br><br>Three machines will offer to answer your what-if. Score points when their answer matches what would <i>truly</i> have happened.");
+  await nextRound();
+}
+async function nextRound() {
+  G.round++;
+  if (G.round > G.rounds) return bonusStage();
+  S.round = `ROUND ${G.round} / ${G.rounds}`;
+  const I = randomIntent(newRng());
+  const I1 = await askIntent(I, null, `Round ${G.round}: tell the agent what you want`, "Pick the pieces of your instruction. The agent reads the text, not the buttons.");
+  G.fact = makeFactual(I1);
+  G.fact.diceVals = [1 + Math.round(clamp(G.fact.uA[0] + 1, 0, 5)), 1 + Math.round(clamp(G.fact.uA[1] + 1, 0, 5))];
+  await playEpisode({ ...G.fact, dice: "new", twin: false, diceVals: G.fact.diceVals }, { hud: "THE FACTUAL RUN", hudDone: "FACTUAL REPORT", color: PAL.g, plotTitle: "FACTUAL" });
+  await dialog(`<b>Report from the agent</b><br><br>${G.fact.Y}<br><br><span class="hint">Chosen because: ${explainChoice(G.fact)}</span>`);
+  const I2 = await askIntent({ ...I1 }, I1, "Should I have expressed a different intent?", "Change what you wish you had said. Faded buttons show what you actually said.");
+  G.cf = { I2, truth: trueCF(G.fact, I2) };
+  const m = await askMethod();
+  await runAndJudge(m);
+}
+function explainChoice(F) {
+  const d = F.A.sPF - F.A.sRR, lean = pfLogit(F.I);
+  const want = lean > 0.4 ? "the intent leans towards PF" : lean < -0.4 ? "the intent leans towards RR" : "the intent is balanced between PF and RR";
+  const luck = Math.sign(d) === Math.sign(lean) || Math.abs(lean) < 0.4 ? "and the dice agreed" : "but the dice tipped it the other way";
+  return `${want}, ${luck}.`;
+}
+async function runAndJudge(m) {
+  const F = G.fact, I2 = G.cf.I2, res = runMethod(m, F, I2);
+  const diceVals = m === "CG" ? F.diceVals : [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+  await playEpisode({ ...res, I: I2, diceVals }, { hud: `${METHODS[m].name}: ${METHODS[m].long}`, hudDone: `${METHODS[m].name} REPORT`, color: METHODS[m].color, plotTitle: METHODS[m].name });
+  const truth = G.cf.truth, score = matchScore(res.Z, truth.Z);
+  G.results[m] = { res, score };
+  // reveal the truth on the plot
+  S.hud = "TRUTH: same dice, same weather, new intent";
+  S.traces = [{ Z: res.Z, color: METHODS[m].color }, { Z: truth.Z, color: PAL.w, width: 2, dash: [5, 3] }];
+  S.legend = [{ name: METHODS[m].name, color: METHODS[m].color }, { name: "TRUE WHAT-IF", color: PAL.w }];
+  S.storm = truth.U; S.simT = truth.U.ts; S.showStorm = true; S.twin = false; S.dice = "same"; S.diceVals = F.diceVals; S.plotTitle = "VS TRUTH";
+  await pause(900);
+  G.score += score; updateScore(); (score >= 70 ? sfx.good : sfx.bad)();
+  $("resultTitle").innerHTML = `${METHODS[m].name} vs the truth <small>round ${G.round}</small>`;
+  $("repMethod").innerHTML = repHTML(`${METHODS[m].name} said`, METHODS[m].color, res, I2);
+  $("repTruth").innerHTML = repHTML("What would truly have happened", "#fff", truth, I2);
+  $("resultScore").innerHTML = `<div class="score">+${score} match</div><div class="bar"><i style="width:${score}%"></i></div>`;
+  $("resultNote").innerHTML = noteFor(m, res, truth, F);
+  $("cmpAll").hidden = false; $("nextRound").textContent = G.round < G.rounds ? "Next round" : "Bonus stage";
+  show("resultPanel");
+  $("cmpAll").onclick = async () => { sfx.click(); $("resultPanel").hidden = true; await compareAll(); show("resultPanel"); $("cmpAll").hidden = true; };
+  $("nextRound").onclick = () => { sfx.click(); $("resultPanel").hidden = true; S.legend = null; S.showStorm = false; nextRound(); };
+}
+function noteFor(m, res, truth, F) {
+  const flip = res.A.sched !== truth.A.sched;
+  const dt = Math.abs(episodeStats(res.Z).tDip - episodeStats(truth.Z).tDip);
+  if (m === "IG") return (flip ? "The re-run rolled new dice and the agent picked a different scheduler. " : "The agent happened to pick the same scheduler, ") + `and the weather was different: the fade hit ${f1(dt)} s away from where it really would have. A re-run answers “what happens next time?”, not “what would have happened?”.`;
+  if (m === "SIG") return (flip ? "New dice: the simulated agent picked a different scheduler. " : "Same scheduler by luck. ") + "The twin drew its own weather from a prior, so the dip landed somewhere else, and the twin's simplified channel smooths the fast fading away.";
+  return (truth.U && res.U ? `The fade was inferred at t≈${f1(res.U.ts)} s (truth: t≈${f1(truth.U.ts)} s) and the agent's dice were kept, so the decision is the one it would truly have made. ` : "") + "What is left is model mismatch: the twin has no fast fading and slightly wrong efficiencies. That gap is what the bonus stage is about.";
+}
+async function compareAll() {
+  const F = G.fact, I2 = G.cf.I2, truth = G.cf.truth;
+  for (const m of ["IG", "SIG", "CG"]) if (!G.results[m]) G.results[m] = { res: runMethod(m, F, I2), score: 0 }, G.results[m].score = matchScore(G.results[m].res.Z, truth.Z);
+  S.hud = "ALL THREE AGAINST THE TRUTH"; S.plotTitle = "COMPARE";
+  S.traces = ["SIG", "IG", "CG"].map(m => ({ Z: G.results[m].res.Z, color: METHODS[m].color, width: 2 })).concat([{ Z: truth.Z, color: PAL.w, width: 2, dash: [5, 3] }]);
+  S.legend = ["IG", "SIG", "CG"].map(m => ({ name: `${METHODS[m].name} ${G.results[m].score}`, color: METHODS[m].color })).concat([{ name: "TRUTH", color: PAL.w }]);
+  await dialog(`<b>Match with the truth this round</b><br><br>` + ["IG", "SIG", "CG"].map(m => `<span style="color:${METHODS[m].color === "#fff" ? "#000" : METHODS[m].color};-webkit-text-stroke:0.5px #000">■</span> ${METHODS[m].name}: <b>${G.results[m].score}</b> (${METHODS[m].long})`).join("<br>") + `<br><br><span class="hint">Over the paper's 100 test episodes, a GPT-4 judge preferred counterfactual generation in 92% of cases, re-running the real system in 8%, and the simulated re-run never. Watch the traces behind this box.</span>`);
+}
+
+/* ===================== Bonus stage: conformal counterfactual generation ===================== */
+const KMAX = 10, ADMIT = 80, DELTA = 0.1;
+const LAMBDA_GRID = []; for (const l1 of [0.25, 0.45, 0.65]) for (const l2 of [0.75, 0.88, 1.01]) for (const l3 of [0.55, 0.75, 0.92]) LAMBDA_GRID.push({ l1, l2, l3 });
+// Generates KMAX candidates for one (episode, edit). Candidates are independent of lambda; the rules only decide acceptance and stopping.
+function candidates(F, I2, truth) {
+  const r = newRng(), mode = abduceMode(F.Z), A = decide(I2, F.uA), out = [];
+  for (let k = 0; k < KMAX; k++) { const U = sampleU(mode, r), Z = runEnv(A, U, true); out.push({ k: k + 1, U, Z, A, q: U.q, Y: reportText(Z, F.uY), admit: truth ? matchScore(Z, truth.Z) >= ADMIT : null }); }
+  return out;
+}
+// Applies acceptance (quality >= l1 and similarity to the set <= l2) and stopping (best quality >= l3). Returns indices kept and the stop index.
+function applyRules(cands, lam) {
+  const set = []; let stop = KMAX;
+  for (let k = 0; k < cands.length; k++) {
+    const c = cands[k]; const sim = set.length ? Math.max(...set.map(j => traceSim(c.Z, cands[j].Z))) : -Infinity;
+    c.sim = sim; c.accepted = c.q >= lam.l1 && sim <= lam.l2;
+    if (c.accepted) set.push(k);
+    const best = set.length ? Math.max(...set.map(j => cands[j].q)) : -Infinity;
+    if (best >= lam.l3) { stop = k + 1; break; }
+  }
+  return { set, stop };
+}
+function logChoose(n, k) { let s = 0; for (let i = 1; i <= k; i++) s += Math.log(n - k + i) - Math.log(i); return s; }
+function binomCDF(N, n, eps) { let p = 0; for (let k = 0; k <= N; k++) p += Math.exp(logChoose(n, k) + k * Math.log(eps) + (n - k) * Math.log(1 - eps)); return p; }
+let CAL = null;
+function calibrate(eps, nCal) {
+  const data = [];
+  for (let i = 0; i < nCal; i++) { const r = newRng(), I = randomIntent(r), F = makeFactual(I), I2 = randomEdit(I, r), truth = trueCF(F, I2); data.push(candidates(F, I2, truth)); }
+  const rows = LAMBDA_GRID.map(lam => {
+    let fails = 0, size = 0, samp = 0;
+    for (const c of data) { const { set, stop } = applyRules(c, lam); if (!set.some(j => c[j].admit)) fails++; size += set.length; samp += stop; }
+    return { lam, fails, size: size / nCal, samp: samp / nCal, p: binomCDF(fails, nCal, eps) };
+  });
+  const valid = rows.filter(r => r.p < DELTA / rows.length);          // Bonferroni over the grid
+  valid.sort((a, b) => (a.samp + a.size) - (b.samp + b.size));
+  const base = data.filter(c => !c.some(x => x.admit)).length / nCal;  // k-CG with k = 10
+  return { eps, nCal, rows, chosen: valid[0] || null, baseFail: base };
+}
+const T = { n: 0, cov: 0, samp: 0, baseCov: 0, cur: null };
+async function bonusStage() {
+  S.round = "BONUS STAGE"; S.hud = "CONFORMAL COUNTERFACTUAL GENERATION"; S.traces = []; S.legend = null; S.showStorm = false; S.dice = null; S.twin = true; S.plotTitle = "";
+  await dialog("REWIND was the honest machine, but its weather is a guess from a digital twin. One rewind can still be off.<br><br>The paper's fix: ask for several rewinds, keep the ones that pass a <b>quality</b> test and are not near-copies of each other, and stop once a strong candidate is in hand. Then <b>calibrate</b> the three thresholds on past episodes so the set contains a faithful answer as often as you demand.");
+  let eps = 0.2;
+  $("calOut").textContent = ""; $("ccgSetup").hidden = false; $("ccgPlay").hidden = true; $("ccgSub").textContent = "";
+  for (const b of document.querySelectorAll("#epsRow .chip")) b.onclick = () => { sfx.click(); eps = Number(b.dataset.eps); for (const o of document.querySelectorAll("#epsRow .chip")) o.setAttribute("aria-pressed", String(o === b)); };
+  show("ccgPanel");
+  $("calBtn").onclick = async () => {
+    sfx.click(); $("calBtn").disabled = true; $("calOut").textContent = "Calibrating: replaying 100 past what-ifs, 10 rewinds each, against 27 threshold settings…";
+    S.hud = "CALIBRATING ON PAST EPISODES";
+    await wait(60);
+    CAL = calibrate(eps, 100);
+    $("calBtn").disabled = false;
+    if (!CAL.chosen) { sfx.bad(); $("calOut").innerHTML = `No threshold setting can promise a miss rate of ${Math.round(eps * 100)}% with 100 episodes: the twin is not good enough for that. The paper's procedure <b>abstains</b> here rather than pretend. Loosen the target and try again.`; return; }
+    sfx.good();
+    const c = CAL.chosen;
+    $("calOut").innerHTML = `Chosen thresholds: quality ≥ ${c.lam.l1}, similarity ≤ ${c.lam.l2 > 1 ? "any" : c.lam.l2}, stop at best quality ≥ ${c.lam.l3}. On the calibration set this missed ${c.fails}/100 and used ${f1(c.samp)} rewinds on average (always-10 missed ${Math.round(CAL.baseFail * 100)}/100).`;
+    $("ccgSub").textContent = `target: miss ≤ ${Math.round(eps * 100)}%`;
+    T.n = 0; T.cov = 0; T.samp = 0; T.baseCov = 0;
+    await wait(900);
+    $("ccgSetup").hidden = true; $("ccgPlay").hidden = false;
+    newCCGEpisode();
+  };
+}
+function newCCGEpisode() {
+  const r = newRng(), I = randomIntent(r), F = makeFactual(I), I2 = randomEdit(I, r), truth = trueCF(F, I2);
+  const cands = candidates(F, I2, truth); const { set, stop } = applyRules(cands, CAL.chosen.lam);
+  T.cur = { F, I2, truth, cands, set, stop, k: 0 };
+  G.fact = F;
+  $("ccgEpisode").innerHTML = `What if: <i>${intentHTML(I2, I)}</i> <span style="opacity:.7">(change in bold)</span>`;
+  $("cands").innerHTML = ""; $("ccgVerdict").innerHTML = "";
+  $("pullBtn").hidden = false; $("pullBtn").disabled = false; $("revealBtn").hidden = true; $("ccgNext").hidden = true; $("ccgDone").hidden = T.n < 3;
+  S.hud = "PULL THE LEVER FOR A REWIND"; S.traces = [{ Z: F.Z, color: "#8899a6", alpha: 0.6 }]; S.legend = [{ name: "FACTUAL", color: "#8899a6" }]; S.nUE = I2.n; S.twin = true; S.showStorm = false; S.storm = null; S.plotTitle = "CANDIDATES";
+  $("pullBtn").onclick = pull;
+  $("revealBtn").onclick = reveal;
+  $("ccgNext").onclick = () => { sfx.click(); newCCGEpisode(); };
+  $("ccgDone").onclick = finish;
+}
+function pull() {
+  const c = T.cur; if (c.k >= c.stop) return;
+  sfx.dice(); const cand = c.cands[c.k]; c.k++;
+  S.traces.push({ Z: cand.Z, color: cand.accepted ? PAL.g : PAL.p, alpha: cand.accepted ? 1 : 0.45, dash: cand.accepted ? null : [3, 3] });
+  S.legend = [{ name: "FACTUAL", color: "#8899a6" }, { name: "ACCEPTED", color: PAL.g }, { name: "SKIPPED", color: PAL.p }];
+  S.storm = cand.U; S.simT = cand.U.ts; S.showStorm = true;
+  const row = document.createElement("div"); row.className = "cand " + (cand.accepted ? "ok" : "skip");
+  const why = cand.accepted ? "accepted" : cand.q < CAL.chosen.lam.l1 ? "skipped: low quality" : "skipped: too similar";
+  const cs = episodeStats(cand.Z);
+  row.title = cand.Y;
+  row.innerHTML = `<span class="k">#${cand.k}</span><span>${cand.A.sched}, ${f2(cs.per)} Mbps per UE, ${Math.round(cs.l10)}–${Math.round(cs.l90)} ms, fade at t≈${f1(cand.U.ts)} s<br><span class="q">quality ${f2(cand.q)}${cand.sim > -Infinity ? `, similarity to set ${f2(cand.sim)}` : ""}</span></span><span class="st">${why}</span>`;
+  $("cands").appendChild(row); row.scrollIntoView({ block: "nearest" });
+  if (c.k >= c.stop) {
+    const best = Math.max(...c.set.map(j => c.cands[j].q));
+    const stopped = best >= CAL.chosen.lam.l3;
+    const note = document.createElement("div"); note.className = "cand ok"; note.style.borderStyle = "double";
+    note.innerHTML = `<span class="k">■</span><span>${stopped ? `Stop: best quality ${f2(best)} reaches the threshold ${CAL.chosen.lam.l3}.` : `Budget of ${KMAX} used up.`} Set has ${c.set.length} report${c.set.length === 1 ? "" : "s"} after ${c.stop} rewinds.</span><span class="st"></span>`;
+    $("cands").appendChild(note); note.scrollIntoView({ block: "nearest" });
+    $("pullBtn").disabled = true; $("revealBtn").hidden = false; S.hud = "SET COMPLETE. REVEAL THE TRUTH";
+  }
+}
+function reveal() {
+  const c = T.cur; sfx.click();
+  const covered = c.set.some(j => c.cands[j].admit), baseCovered = c.cands.some(x => x.admit);
+  T.n++; T.cov += covered ? 1 : 0; T.samp += c.stop; T.baseCov += baseCovered ? 1 : 0;
+  S.traces.push({ Z: c.truth.Z, color: PAL.w, width: 2, dash: [5, 3] }); S.legend.push({ name: "TRUTH", color: PAL.w });
+  S.storm = c.truth.U; S.simT = c.truth.U.ts; S.showStorm = true; S.twin = false; S.hud = covered ? "COVERED: a faithful report is in the set" : "MISS: nothing in the set was close enough";
+  const best = Math.max(...c.set.map(j => matchScore(c.cands[j].Z, c.truth.Z)));
+  $("ccgVerdict").innerHTML = `<div class="verdict ${covered ? "ok" : "miss"}">${covered ? "Covered." : "Missed."} Best match in the set: ${best} (faithful means ≥ ${ADMIT}). True fade at t≈${f1(c.truth.U.ts)} s, true scheduler ${c.truth.A.sched}.</div>`;
+  (covered ? sfx.good : sfx.bad)(); if (covered) { G.score += 50; updateScore(); }
+  $("tCov").textContent = `${T.cov}/${T.n}`; $("tSamp").textContent = f1(T.samp / T.n); $("tBase").textContent = `${T.baseCov}/${T.n}`;
+  $("revealBtn").hidden = true; $("ccgNext").hidden = false; $("ccgDone").hidden = T.n < 2;
+}
+async function finish() {
+  sfx.click(); hideAll();
+  const covPct = T.n ? Math.round(100 * T.cov / T.n) : 0;
+  $("endText").innerHTML = `Final score <b>${G.score}</b>.<br><br>Across your ${T.n} what-ifs the calibrated set covered the truth ${T.cov} time${T.cov === 1 ? "" : "s"} (${covPct}%) using ${T.n ? f1(T.samp / T.n) : "–"} rewinds on average, against a fixed budget of 10. Over many episodes the miss rate is guaranteed to stay at or below your target.<br><br>Re-running answers “what happens next time?”. Only a rewind with the same dice and inferred conditions answers “what would have happened?”.`;
+  S.hud = "THANKS FOR PLAYING"; S.round = "";
+  show("endScreen");
+}
+
+/* ===================== Wiring ===================== */
+$("newGame").onclick = () => { sfx.click(); startGame(); };
+$("playAgain").onclick = () => { sfx.click(); startGame(); };
+$("restartBtn").onclick = () => { sfx.click(); skipRequested = true; setTimeout(() => { G.score = 0; updateScore(); show("titleScreen"); S.hud = "INSERT COIN"; S.round = ""; S.traces = []; S.legend = null; S.storm = null; S.dice = null; S.twin = false; S.speech = null; }, 50); };
+$("howBtn").onclick = async () => {
+  sfx.click(); $("titleScreen").hidden = true;
+  await dialog("<b>How to play</b><br><br>1. Compose an intent and send it. Watch the agent decide, the network run, and the report come back.<br>2. Change your intent and pick a machine to answer “what if?”.<br>3. See how close its answer is to what would truly have happened. Three rounds, then a bonus stage about reliability.<br><br>Click anywhere on the picture to skip an animation.");
+  show("titleScreen");
+};
+$("soundBtn").onclick = () => { G.sound = !G.sound; $("soundBtn").textContent = `Sound: ${G.sound ? "on" : "off"}`; $("soundBtn").setAttribute("aria-pressed", String(G.sound)); try { localStorage.setItem("whatif-sound", G.sound ? "on" : "off"); } catch (e) { } sfx.click(); };
+$("soundBtn").textContent = `Sound: ${G.sound ? "on" : "off"}`; $("soundBtn").setAttribute("aria-pressed", String(G.sound));
+
+S.hud = "INSERT COIN"; S.nUE = 5;
+// Demo trace on the title screen so the monitor is never blank
+(function idle() { const r = mulberry32(7), U = worldNoise(r), A = { sched: "PF", n: 5, load: 1.2 }; S.traces = [{ Z: runEnv(A, U, false), color: PAL.g, alpha: 0.5 }]; })();
+loop();
+const ready = () => { $("newGame").disabled = false; };
+if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('600 16px "Pixelify Sans"'), document.fonts.load('400 16px "Pixelify Sans"')]).then(ready, ready); else ready();
+setTimeout(ready, 2500);
+</script>
+</body>
+</html>

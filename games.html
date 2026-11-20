@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Games — Amirmohammad Farzaneh</title>
+  <meta name="description" content="Playable arcade-style demos of research papers by Amirmohammad Farzaneh. Each game explains one paper for people who do not work in AI." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">Amirmohammad Farzaneh</a>
+    <button class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="publications.html">Publications</a></li>
+      <li><a href="news.html">News</a></li>
+      <li><a href="teaching.html">Teaching</a></li>
+      <li><a href="games.html">Games</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <h1 class="page-title">Games</h1>
+
+    <p class="games-intro">
+      Each paper I publish gets a small retro arcade game that lets you play with its main idea in a few
+      minutes, with no background in machine learning needed. Every game says which paper it is based on and
+      what parts are a toy simplification. Click into a game to play it in your browser; nothing to install.
+    </p>
+
+    <ul class="game-list">
+
+      <li class="game-card">
+        <a class="game-thumb" href="games/what-if/" aria-label="Play What If?">
+          <img src="assets/games/what-if.png" alt="Title screen of the What If? arcade game: a pixel-art operator, LLM agent robot and 5G cell tower above a KPI oscilloscope" loading="lazy" />
+        </a>
+        <div class="game-body">
+          <div class="game-title"><a href="games/what-if/">What If?</a></div>
+          <p class="game-desc">
+            You run a 5G cell by telling an AI agent what you want in plain words. After each run you wonder
+            whether a different instruction would have gone better, and three machines offer to tell you.
+            Only one of them rewinds the world instead of re-running it. A bonus stage shows how to ask for
+            several answers and still guarantee that one of them is right.
+          </p>
+          <div class="game-paper">
+            <span class="game-paper-label">Based on the paper</span>
+            <a href="https://arxiv.org/abs/2601.20090" target="_blank" rel="noopener">Should I Have Expressed a Different Intent? Counterfactual Generation for LLM-Based Autonomous Control</a><br />
+            Amirmohammad Farzaneh, Salvatore D'Oro, Osvaldo Simeone · ICML 2026
+          </div>
+          <div class="game-actions">
+            <a class="game-play" href="games/what-if/">Play</a>
+            <a class="pub-link" href="https://arxiv.org/abs/2601.20090" target="_blank" rel="noopener">arXiv</a>
+            <a class="pub-link" href="publications.html">Publication entry</a>
+          </div>
+        </div>
+      </li>
+
+    </ul>
+  </div>
+</main>
+
+<footer>
+  <p>© 2026 Amirmohammad Farzaneh &nbsp;·&nbsp; <a href="mailto:a.farzaneh@nulondon.ac.uk">a.farzaneh@nulondon.ac.uk</a></p>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

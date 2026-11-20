@@ -550,3 +550,85 @@ footer a:hover { color: var(--blue); }
 
   .pub-item, .news-card, .course-item { padding: 14px 16px; }
 }
+
+/* ---- Games --------------------------------------------- */
+.games-intro { font-size: 0.95rem; color: #374151; margin-bottom: 36px; max-width: 64ch; }
+
+.game-list { list-style: none; display: grid; gap: 20px; }
+
+.game-card {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 22px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.game-card:hover { border-color: #93c5fd; box-shadow: 0 2px 12px rgba(29,78,216,0.07); }
+
+.game-thumb {
+  display: block;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0a1020;
+  aspect-ratio: 16 / 10;
+}
+.game-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.game-body { min-width: 0; }
+
+.game-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.game-title a { color: inherit; }
+.game-title a:hover { color: var(--blue); text-decoration: none; }
+
+.game-desc { font-size: 0.88rem; color: #374151; margin-bottom: 12px; }
+
+.game-paper {
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 10px 12px;
+  background: var(--bg-soft);
+  border-left: 3px solid #bfdbfe;
+  border-radius: 4px;
+  margin-bottom: 14px;
+}
+.game-paper .game-paper-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.game-paper a { color: var(--text); font-weight: 600; }
+.game-paper a:hover { color: var(--blue); }
+
+.game-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.game-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--blue);
+  padding: 7px 14px;
+  border-radius: 6px;
+}
+.game-play:hover { background: var(--blue-dark); color: #fff; text-decoration: none; }
+
+.pub-link-game { border-color: #a7f3d0; color: #065f46; }
+.pub-link-game:hover { background: #ecfdf5; }
+
+@media (max-width: 640px) {
+  .game-card { grid-template-columns: 1fr; gap: 14px; padding: 14px 16px; }
+}
